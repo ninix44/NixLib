@@ -6,7 +6,6 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -17,7 +16,6 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
@@ -61,7 +59,6 @@ public class NixLib {
         }).build());
 
     public static final KeyMapping OPEN_VISUALIZER_KEY = new KeyMapping("key.nixlib.open_visualizer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, "key.categories.nixlib");
-
     public static final KeyMapping TEST_SHADER_KEY = new KeyMapping("key.nixlib.test_shader", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, "key.categories.nixlib");
 
     public NixLib(IEventBus modEventBus, ModContainer modContainer) {
@@ -72,7 +69,7 @@ public class NixLib {
         ITEMS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
 
-        NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.addListener(this::onServerStarting);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(ClientModEvents::onClientSetup);
@@ -93,7 +90,6 @@ public class NixLib {
         }
     }
 
-    @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.info("NixLib: Server starting...");
     }
