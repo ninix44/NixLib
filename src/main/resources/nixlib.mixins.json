@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "ru.ninix.nixlib.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "nixlib.refmap.json",
+  "plugin": "ru.ninix.nixlib.mixin.NixLibMixinPlugin",
+  "mixins": [
+    "TitleScreenMixin"
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "itemGroup.nixlib": "Example Mod Tab",
+  "block.nixlib.example_block": "Example Block",
+  "item.nixlib.example_item": "Example Item",
+  "key.nixlib.open_visualizer": "Open Mixin Visualizer",
+  "key.categories.nixlib": "NixLib"
+}
