@@ -35,6 +35,7 @@ import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import ru.ninix.nixlib.client.shader.ShaderAPI;
 import ru.ninix.nixlib.client.shader.impl.BlackHoleShader;
+import ru.ninix.nixlib.client.gui.CosmicGuiScreen;
 import ru.ninix.nixlib.visualizer.MixinListScreen;
 
 @Mod(NixLib.MODID)
@@ -58,7 +59,10 @@ public class NixLib {
             output.accept(EXAMPLE_ITEM.get());
         }).build());
 
-    public static final KeyMapping OPEN_VISUALIZER_KEY = new KeyMapping("key.nixlib.open_visualizer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, "key.categories.nixlib");
+    public static final KeyMapping OPEN_VISUALIZER_KEY = new KeyMapping("key.nixlib.open_visualizer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
+
+    public static final KeyMapping OPEN_COSMIC_KEY = new KeyMapping("key.nixlib.open_cosmic", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, "key.categories.nixlib");
+
     public static final KeyMapping TEST_SHADER_KEY = new KeyMapping("key.nixlib.test_shader", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, "key.categories.nixlib");
 
     public NixLib(IEventBus modEventBus, ModContainer modContainer) {
@@ -101,6 +105,7 @@ public class NixLib {
 
         public static void registerKeys(RegisterKeyMappingsEvent event) {
             event.register(OPEN_VISUALIZER_KEY);
+            event.register(OPEN_COSMIC_KEY);
             event.register(TEST_SHADER_KEY);
         }
     }
@@ -111,9 +116,13 @@ public class NixLib {
                 Minecraft.getInstance().setScreen(new MixinListScreen(Minecraft.getInstance().screen));
             }
 
+            if (OPEN_COSMIC_KEY.consumeClick()) {
+                Minecraft.getInstance().setScreen(new CosmicGuiScreen());
+            }
+
             if (TEST_SHADER_KEY.consumeClick()) {
                 ShaderAPI.toggle(new BlackHoleShader(0.8f, 10.0f));
-                Minecraft.getInstance().player.displayClientMessage(Component.literal("Shader Toggled!"), true);
+                Minecraft.getInstance().player.displayClientMessage(Component.literal("World Shader Toggled!"), true);
             }
 
             ShaderAPI.tick();

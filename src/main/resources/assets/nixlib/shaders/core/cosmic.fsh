@@ -1,13 +1,9 @@
 #version 150
 
 uniform float uTime;
-uniform vec2 ScreenSize;
-uniform sampler2D Sampler0;
+uniform vec2 MousePos;
 
 in vec2 texCoord;
-in vec4 vertexColor;
-in vec2 vPos;
-
 out vec4 fragColor;
 
 float random(vec2 st) {
@@ -26,24 +22,31 @@ float noise(vec2 st) {
 }
 
 void main() {
-    vec2 st = gl_FragCoord.xy / ScreenSize.xy;
+    vec2 st = texCoord;
 
-    vec3 color = vec3(0.05, 0.0, 0.1);
+    vec2 toMouse = st - MousePos;
+    float dist = length(toMouse);
+    float mouseRadius = 0.4;
 
-    float n = noise(st * 3.0 + uTime * 0.1);
-    color += vec3(0.4, 0.0, 0.8) * n * 0.5;
-
-    float n2 = noise(st * 6.0 - uTime * 0.05);
-    color += vec3(0.0, 0.2, 0.6) * n2 * 0.3;
-
-    float stars = random(st + uTime * 0.0001);
-    if (stars > 0.985) {
-        float intensity = (stars - 0.985) * 80.0;
-        color += vec3(0.8, 0.9, 1.0) * intensity;
+    if (dist < mouseRadius) {
+        float pull = smoothstep(mouseRadius, 0.0, dist);
+        st -= toMouse * pull * 0.4;
     }
 
-    float vignette = 1.0 - length(st - 0.5) * 1.2;
-    color *= clamp(vignette, 0.0, 1.0);
+    vec3 color = vec3(0.0, 0.0, 0.05);
+
+    float n1 = noise(st * 3.0 + uTime * 0.05);
+    float n2 = noise(st * 6.0 - uTime * 0.03);
+
+    float cloud1 = smoothstep(0.4, 0.8, n1);
+    float cloud2 = smoothstep(0.4, 0.8, n2);
+
+    color += vec3(0.4, 0.0, 0.6) * cloud1 * 0.8;
+    color += vec3(0.0, 0.3, 0.8) * cloud2 * 0.6;
+
+
+    float vig = st.x * (1.0 - st.x) * st.y * (1.0 - st.y) * 50.0;
+    color *= clamp(pow(vig, 0.3), 0.0, 1.0);
 
     fragColor = vec4(color, 1.0);
 }
