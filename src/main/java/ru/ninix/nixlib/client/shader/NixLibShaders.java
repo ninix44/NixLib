@@ -17,6 +17,9 @@ public class NixLibShaders {
     @Nullable
     private static ShaderInstance cosmicShader;
 
+    @Nullable
+    private static ShaderInstance constellationCardShader;
+
     @SubscribeEvent
     public static void registerShaders(RegisterShadersEvent event) {
         try {
@@ -27,6 +30,14 @@ public class NixLibShaders {
                     NixLib.LOGGER.info("Cosmic Core Shader Loaded!");
                 }
             );
+
+            event.registerShader(
+                new ShaderInstance(event.getResourceProvider(), ResourceLocation.fromNamespaceAndPath(NixLib.MODID, "constellation_card"), DefaultVertexFormat.POSITION_TEX_COLOR),
+                shaderInstance -> {
+                    constellationCardShader = shaderInstance;
+                    NixLib.LOGGER.info("Constellation Card Shader Loaded!");
+                }
+            );
         } catch (IOException e) {
             NixLib.LOGGER.error("Failed to load shader", e);
         }
@@ -35,5 +46,10 @@ public class NixLibShaders {
     @Nullable
     public static ShaderInstance getCosmicShader() {
         return cosmicShader;
+    }
+
+    @Nullable
+    public static ShaderInstance getConstellationCardShader() {
+        return constellationCardShader;
     }
 }
