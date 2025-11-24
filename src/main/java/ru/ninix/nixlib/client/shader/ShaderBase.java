@@ -12,11 +12,8 @@ import ru.ninix.nixlib.client.shader.api.GlslUniform;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 
 public abstract class ShaderBase {
     protected final Minecraft mc = Minecraft.getInstance();
@@ -25,21 +22,18 @@ public abstract class ShaderBase {
 
     private int durationTicks = -1;
     private int ticks = 0;
+    protected final long startTime;
 
     @Nullable
     private PostChain postChain;
 
     private final Map<String, Field> cachedUniforms = new HashMap<>();
 
-    private final List<Consumer<EffectInstance>> uniformAppliers = new ArrayList<>();
-
     protected ShaderBase(ResourceLocation shaderLocation, RenderStage renderStage) {
         this.shaderLocation = shaderLocation;
         this.renderStage = renderStage;
-
+        this.startTime = System.currentTimeMillis();
         scanForUniforms();
-
-        this.addUniformApplier(this::applyReflectedUniforms);
     }
 
     private void scanForUniforms() {
@@ -48,8 +42,7 @@ public abstract class ShaderBase {
             for (Field field : clazz.getDeclaredFields()) {
                 if (field.isAnnotationPresent(GlslUniform.class)) {
                     field.setAccessible(true);
-                    String uniformName = field.getAnnotation(GlslUniform.class).value();
-                    cachedUniforms.put(uniformName, field);
+                    cachedUniforms.put(field.getAnnotation(GlslUniform.class).value(), field);
                 }
             }
             clazz = clazz.getSuperclass();
@@ -67,20 +60,15 @@ public abstract class ShaderBase {
     public void onTick() {
         if (durationTicks > 0) {
             ticks++;
-            if (ticks >= durationTicks) {
-                durationTicks = 0;
-            }
         }
     }
 
     public boolean isFinished() {
-        return durationTicks == 0;
+        return durationTicks > 0 && ticks >= durationTicks;
     }
 
     public void createPostChain() {
-        if (postChain != null) {
-            postChain.close();
-        }
+        if (postChain != null) postChain.close();
         try {
             postChain = new PostChain(mc.getTextureManager(), mc.getResourceManager(), mc.getMainRenderTarget(), shaderLocation);
             postChain.resize(mc.getWindow().getWidth(), mc.getWindow().getHeight());
@@ -93,41 +81,19 @@ public abstract class ShaderBase {
     public void process(float partialTicks) {
         if (postChain == null) return;
 
+        float timeSec = (System.currentTimeMillis() - startTime) / 1000.0f;
+
         for (var pass : postChain.passes) {
-            EffectInstance effectInstance = pass.getEffect();
-            if (effectInstance != null) {
-                applyUniforms(effectInstance);
+            EffectInstance effect = pass.getEffect();
+            if (effect != null) {
+                Uniform uTime = effect.getUniform("uTime");
+                if (uTime != null) uTime.set(timeSec);
+
+                applyReflectedUniforms(effect);
             }
         }
 
         postChain.process(partialTicks);
-    }
-
-    public void resize(int width, int height) {
-        if (postChain != null) {
-            postChain.resize(width, height);
-        }
-    }
-
-    public void close() {
-        if (postChain != null) {
-            postChain.close();
-            postChain = null;
-        }
-    }
-
-    public void addUniformApplier(Consumer<EffectInstance> applier) {
-        if (applier != null) uniformAppliers.add(applier);
-    }
-
-    private void applyUniforms(EffectInstance effectInstance) {
-        for (Consumer<EffectInstance> c : uniformAppliers) {
-            try {
-                c.accept(effectInstance);
-            } catch (Throwable t) {
-                NixLib.LOGGER.error("Failed to apply uniform for shader: {}", shaderLocation, t);
-            }
-        }
     }
 
     private void applyReflectedUniforms(EffectInstance effect) {
@@ -136,22 +102,26 @@ public abstract class ShaderBase {
             if (uniform != null) {
                 try {
                     Class<?> type = field.getType();
-
-                    if (type == float.class) {
-                        uniform.set(field.getFloat(this));
-                    } else if (type == int.class) {
-                        uniform.set(field.getInt(this));
-                    } else if (type == boolean.class) {
-                        uniform.set(field.getBoolean(this) ? 1.0f : 0.0f);
-                    } else if (type == float[].class) {
-                        uniform.set((float[]) field.get(this));
-                    }
-
+                    if (type == float.class) uniform.set(field.getFloat(this));
+                    else if (type == int.class) uniform.set(field.getInt(this));
+                    else if (type == boolean.class) uniform.set(field.getBoolean(this) ? 1.0f : 0.0f);
+                    else if (type == float[].class) uniform.set((float[]) field.get(this));
                 } catch (IllegalAccessException e) {
-                    NixLib.LOGGER.error("Failed to access reflected field: " + field.getName(), e);
+                    NixLib.LOGGER.error("Failed access field: " + field.getName(), e);
                 }
             }
         });
+    }
+
+    public void resize(int width, int height) {
+        if (postChain != null) postChain.resize(width, height);
+    }
+
+    public void close() {
+        if (postChain != null) {
+            postChain.close();
+            postChain = null;
+        }
     }
 
     public ResourceLocation getShaderLocation() { return shaderLocation; }

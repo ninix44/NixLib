@@ -33,6 +33,7 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
+import ru.ninix.nixlib.client.gui.TestRainbowScreen;
 import ru.ninix.nixlib.client.shader.ShaderAPI;
 import ru.ninix.nixlib.client.shader.impl.BlackHoleShader;
 import ru.ninix.nixlib.client.gui.CosmicGuiScreen;
@@ -63,8 +64,8 @@ public class NixLib {
     public static final KeyMapping OPEN_VISUALIZER_KEY = new KeyMapping("key.nixlib.open_visualizer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
     public static final KeyMapping OPEN_COSMIC_KEY = new KeyMapping("key.nixlib.open_cosmic", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, "key.categories.nixlib");
     public static final KeyMapping TEST_SHADER_KEY = new KeyMapping("key.nixlib.test_shader", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, "key.categories.nixlib");
-
     public static final KeyMapping OPEN_CONSTELLATION_KEY = new KeyMapping("key.nixlib.open_constellation", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, "key.categories.nixlib");
+    public static final KeyMapping OPEN_RAINBOW_KEY = new KeyMapping("key.nixlib.open_rainbow", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, "key.categories.nixlib");
 
     public NixLib(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
@@ -109,6 +110,7 @@ public class NixLib {
             event.register(OPEN_COSMIC_KEY);
             event.register(TEST_SHADER_KEY);
             event.register(OPEN_CONSTELLATION_KEY);
+            event.register(OPEN_RAINBOW_KEY);
         }
     }
 
@@ -124,6 +126,10 @@ public class NixLib {
 
             if (OPEN_CONSTELLATION_KEY.consumeClick()) {
                 Minecraft.getInstance().setScreen(new ConstellationGameScreen());
+            }
+
+            if (OPEN_RAINBOW_KEY.consumeClick()) {
+                Minecraft.getInstance().setScreen(new TestRainbowScreen());
             }
 
             if (TEST_SHADER_KEY.consumeClick()) {

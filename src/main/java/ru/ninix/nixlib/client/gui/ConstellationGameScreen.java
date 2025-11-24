@@ -1,22 +1,18 @@
 package ru.ninix.nixlib.client.gui;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import ru.ninix.nixlib.client.shader.NixLibShaders;
+import ru.ninix.nixlib.client.util.NixRenderUtils;
 
 import java.util.Random;
 
 public class ConstellationGameScreen extends Screen {
-
-    private static final ResourceLocation WHITE_TEXTURE = ResourceLocation.withDefaultNamespace("textures/misc/white.png");
 
     private float time = 0.0f;
 
@@ -122,48 +118,36 @@ public class ConstellationGameScreen extends Screen {
 
         time += partialTick * 0.01f;
 
-        renderCard(cardX, cardY, cardWidth, cardHeight, mouseX, mouseY);
+        renderCard(guiGraphics, mouseX, mouseY);
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
-    private void renderCard(int x, int y, int w, int h, int mouseX, int mouseY) {
+    private void renderCard(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         ShaderInstance shader = NixLibShaders.getConstellationCardShader();
         if (shader == null) return;
 
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.setShaderTexture(0, WHITE_TEXTURE);
-        RenderSystem.setShader(() -> shader);
+        float relX = (float) (mouseX - cardX) / cardWidth;
+        float relY = (float) (mouseY - cardY) / cardHeight;
 
-        if (shader.getUniform("uTime") != null) shader.getUniform("uTime").set(time);
+        boolean isHovering = mouseX >= cardX && mouseX <= cardX + cardWidth && mouseY >= cardY && mouseY <= cardY + cardHeight;
 
-        float relX = (float) (mouseX - x) / w;
-        float relY = (float) (mouseY - y) / h;
-        boolean isHovering = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
+        NixRenderUtils.drawTexturedQuad(
+            guiGraphics.pose().last().pose(),
+            cardX, cardY, cardWidth, cardHeight,
+            shader,
+            (s) -> {
+                safeSet(s, "uTime", time);
+                safeSet(s, "MousePos", relX, relY);
+                safeSet(s, "HasFocus", isHovering ? 1.0f : 0.0f);
+                safeSet(s, "StarCoords", starCoords);
+                safeSet(s, "GameProgress", (float) connectedCount);
+            }
+        );
+    }
 
-        if (shader.getUniform("MousePos") != null) shader.getUniform("MousePos").set(relX, relY);
-        if (shader.getUniform("HasFocus") != null) shader.getUniform("HasFocus").set(isHovering ? 1.0f : 0.0f);
-
-        if (shader.getUniform("StarCoords") != null) {
-            shader.getUniform("StarCoords").set(starCoords);
-        }
-
-        if (shader.getUniform("GameProgress") != null) {
-            shader.getUniform("GameProgress").set((float) connectedCount);
-        }
-
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder bufferBuilder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-
-        float z = 0.0f;
-        bufferBuilder.addVertex(x, y + h, z).setUv(0, 1).setColor(255, 255, 255, 255);
-        bufferBuilder.addVertex(x + w, y + h, z).setUv(1, 1).setColor(255, 255, 255, 255);
-        bufferBuilder.addVertex(x + w, y, z).setUv(1, 0).setColor(255, 255, 255, 255);
-        bufferBuilder.addVertex(x, y, z).setUv(0, 0).setColor(255, 255, 255, 255);
-
-        BufferUploader.drawWithShader(bufferBuilder.buildOrThrow());
-        RenderSystem.disableBlend();
+    private void safeSet(ShaderInstance s, String name, float... vals) {
+        if (s.getUniform(name) != null) s.getUniform(name).set(vals);
     }
 
     @Override

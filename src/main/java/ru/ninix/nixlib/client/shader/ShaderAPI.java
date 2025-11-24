@@ -15,14 +15,13 @@ public final class ShaderAPI {
 
     private static int lastWidth = 0;
     private static int lastHeight = 0;
-    private static boolean wasInWorld = false;
 
     private ShaderAPI() {}
 
     public static void load(ShaderBase shader) {
         if (shader == null || isLoaded(shader.getShaderLocation())) return;
-
         shader.onEnable();
+
         if (shader.getPostChain() == null) return;
 
         if (shader.getRenderStage() == RenderStage.WORLD) {
@@ -30,19 +29,17 @@ public final class ShaderAPI {
         } else {
             screenShaders.add(shader);
         }
-        NixLib.LOGGER.info("Loaded shader: " + shader.getShaderLocation());
+        NixLib.LOGGER.info("Loaded Post-Shader: " + shader.getShaderLocation());
     }
 
     public static void unload(ResourceLocation location) {
-        worldShaders.removeIf(shader -> {
-            if (shader.getShaderLocation().equals(location)) {
-                shader.onDisable();
-                return true;
-            }
-            return false;
-        });
-        screenShaders.removeIf(shader -> {
-            if (shader.getShaderLocation().equals(location)) {
+        unloadFromList(worldShaders, location);
+        unloadFromList(screenShaders, location);
+    }
+
+    private static void unloadFromList(List<ShaderBase> list, ResourceLocation loc) {
+        list.removeIf(shader -> {
+            if (shader.getShaderLocation().equals(loc)) {
                 shader.onDisable();
                 return true;
             }
@@ -65,19 +62,23 @@ public final class ShaderAPI {
     }
 
     public static void tick() {
-        boolean isInWorld = mc.level != null;
-
-        if (wasInWorld && !isInWorld) {
-            unloadAll();
+        if (mc.level == null) {
+            if (!worldShaders.isEmpty()) {
+                worldShaders.forEach(ShaderBase::onDisable);
+                worldShaders.clear();
+            }
+            return;
         }
-        wasInWorld = isInWorld;
 
-        if (!isInWorld || mc.isPaused()) return;
+        if (mc.isPaused()) return;
 
-        worldShaders.forEach(ShaderBase::onTick);
-        screenShaders.forEach(ShaderBase::onTick);
+        tickList(worldShaders);
+        tickList(screenShaders);
+    }
 
-        worldShaders.removeIf(shader -> {
+    private static void tickList(List<ShaderBase> list) {
+        list.forEach(ShaderBase::onTick);
+        list.removeIf(shader -> {
             if (shader.isFinished()) {
                 shader.onDisable();
                 return true;
@@ -94,12 +95,6 @@ public final class ShaderAPI {
         }
     }
 
-    private static void unloadAll() {
-        worldShaders.forEach(ShaderBase::onDisable);
-        worldShaders.clear();
-        screenShaders.forEach(ShaderBase::onDisable);
-        screenShaders.clear();
-    }
 
     private static void handleResize() {
         int width = mc.getWindow().getWidth();
