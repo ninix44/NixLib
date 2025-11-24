@@ -19,12 +19,16 @@ public class NixLibShaders {
     @Nullable private static ShaderInstance cosmicShader;
     @Nullable private static ShaderInstance constellationCardShader;
     @Nullable private static ShaderInstance rainbowShader;
+    @Nullable private static ShaderInstance rgbAuraShader;
+    @Nullable private static ShaderInstance voidCoreShader;
 
     @SubscribeEvent
     public static void registerShaders(RegisterShadersEvent event) {
         register(event, "cosmic", s -> cosmicShader = s);
         register(event, "constellation_card", s -> constellationCardShader = s);
         register(event, "rainbow_shape", s -> rainbowShader = s);
+        register(event, "rgb_aura", s -> rgbAuraShader = s);
+        register(event, "void_core", s -> voidCoreShader = s);
     }
 
     private static void register(RegisterShadersEvent event, String path, Consumer<ShaderInstance> setter) {
@@ -33,7 +37,7 @@ public class NixLibShaders {
                 new ShaderInstance(
                     event.getResourceProvider(),
                     ResourceLocation.fromNamespaceAndPath(NixLib.MODID, path),
-                    DefaultVertexFormat.POSITION_TEX
+                    DefaultVertexFormat.POSITION_TEX_COLOR
                 ),
                 setter
             );
@@ -46,4 +50,6 @@ public class NixLibShaders {
     @Nullable public static ShaderInstance getCosmicShader() { return cosmicShader; }
     @Nullable public static ShaderInstance getConstellationCardShader() { return constellationCardShader; }
     @Nullable public static ShaderInstance getRainbowShader() { return rainbowShader; }
+    @Nullable public static ShaderInstance getRgbAuraShader() { return rgbAuraShader; }
+    @Nullable public static ShaderInstance getVoidCoreShader() { return voidCoreShader; }
 }

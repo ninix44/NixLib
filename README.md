@@ -14,7 +14,8 @@ Core rendering library for **NeoForge 1.21**
 *   [ ] **Cutscenes** – Camera paths and sequencing.
 *   [ ] **Bedrock Parser** – Loading `.json` Bedrock models.
 *   [ ] **Particle System** – Custom particle rendering and logic.
-*   [ ] **Block Shaders** – Glow and bloom effects.
+*   [x] **Block Shaders** – Glow and bloom effects.
+  * [ ] **Block Shaders** - Make the block glow dependent on the block rendering, now it glows like a normal torch
 
 
 
@@ -62,8 +63,8 @@ NixRenderUtils.drawCustomGeometry(
 *   [ ] **Катсцены** – Управление камерой и сценарии.
 *   [ ] **Парсер Bedrock** – Загрузка моделей формата Bedrock.
 *   [ ] **Система партиклов** – Рендер и логика частиц.
-*   [ ] **Шейдеры блоков** – Свечение (Bloom) и эффекты.
-
+*   [x] **Шейдеры блоков** – Свечение (Bloom) и эффекты.
+  *   [ ] **Шейдеры блоков** – Сделайте свечение блока зависимым от рендеринга блока, теперь он светится как обычный факел!!!
 
 
 ## 🛠 Примеры использования

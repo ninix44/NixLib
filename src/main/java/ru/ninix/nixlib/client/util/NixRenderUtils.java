@@ -120,4 +120,72 @@ public class NixRenderUtils {
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
     }
+
+    /**
+     * 3D Block Mode: Draw a Cube with a Shader
+     * @param matrix           The pose matrix.
+     * @param shader           The shader instance.
+     * @param seeThroughWalls  IF TRUE: You will see the block through walls (Wallhack). IF FALSE: Normal behavior.
+     * @param uniformSetup     A lambda to set shader uniforms.
+     */
+    public static void drawCubeWithShader(Matrix4f matrix, ShaderInstance shader, boolean seeThroughWalls, Consumer<ShaderInstance> uniformSetup) {
+        if (shader == null) return;
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableCull();
+
+        if (seeThroughWalls) {
+            RenderSystem.disableDepthTest();
+        } else {
+            RenderSystem.enableDepthTest();
+        }
+
+        RenderSystem.depthMask(false);
+
+        RenderSystem.setShader(() -> shader);
+        if (uniformSetup != null) uniformSetup.accept(shader);
+
+        Tesselator tesselator = Tesselator.getInstance();
+        BufferBuilder builder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+
+        builder.addVertex(matrix, 0, 1, 0).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 0, 1, 1).setUv(0, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 1, 1).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 1, 0).setUv(1, 0).setColor(255, 255, 255, 255);
+
+        builder.addVertex(matrix, 0, 0, 0).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 0, 0).setUv(1, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 0, 1).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 0, 0, 1).setUv(0, 1).setColor(255, 255, 255, 255);
+
+        builder.addVertex(matrix, 0, 0, 1).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 0, 1).setUv(1, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 1, 1).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 0, 1, 1).setUv(0, 1).setColor(255, 255, 255, 255);
+
+        builder.addVertex(matrix, 0, 0, 0).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 0, 1, 0).setUv(0, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 1, 0).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 0, 0).setUv(1, 0).setColor(255, 255, 255, 255);
+
+        builder.addVertex(matrix, 0, 0, 0).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 0, 0, 1).setUv(1, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 0, 1, 1).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 0, 1, 0).setUv(0, 1).setColor(255, 255, 255, 255);
+
+        builder.addVertex(matrix, 1, 0, 0).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 1, 0).setUv(0, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 1, 1).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, 1, 0, 1).setUv(1, 0).setColor(255, 255, 255, 255);
+
+        try {
+            BufferUploader.drawWithShader(builder.buildOrThrow());
+        } catch (Exception ignored) {}
+
+        RenderSystem.depthMask(true);
+        RenderSystem.enableDepthTest();
+        RenderSystem.enableCull();
+        RenderSystem.disableBlend();
+    }
 }

@@ -11,7 +11,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.api.distmarker.Dist;
@@ -22,6 +22,7 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -33,11 +34,17 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
+import ru.ninix.nixlib.client.gui.ConstellationGameScreen;
+import ru.ninix.nixlib.client.gui.CosmicGuiScreen;
 import ru.ninix.nixlib.client.gui.TestRainbowScreen;
+import ru.ninix.nixlib.client.renderer.ShaderBlockRenderer;
+import ru.ninix.nixlib.client.shader.NixLibShaders;
 import ru.ninix.nixlib.client.shader.ShaderAPI;
 import ru.ninix.nixlib.client.shader.impl.BlackHoleShader;
-import ru.ninix.nixlib.client.gui.CosmicGuiScreen;
-import ru.ninix.nixlib.client.gui.ConstellationGameScreen;
+import ru.ninix.nixlib.common.block.GlowBlock;
+import ru.ninix.nixlib.common.block.GlowBlockEntity;
+import ru.ninix.nixlib.common.block.VoidBlock;
+import ru.ninix.nixlib.common.block.VoidBlockEntity;
 import ru.ninix.nixlib.visualizer.MixinListScreen;
 
 @Mod(NixLib.MODID)
@@ -47,10 +54,36 @@ public class NixLib {
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
+    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 
-    public static final DeferredBlock<Block> EXAMPLE_BLOCK = BLOCKS.registerSimpleBlock("example_block", BlockBehaviour.Properties.of().mapColor(MapColor.STONE));
+    public static final DeferredBlock<GlowBlock> EXAMPLE_BLOCK = BLOCKS.register("example_block",
+        () -> new GlowBlock(BlockBehaviour.Properties.of()
+            .mapColor(MapColor.STONE)
+            .strength(2.0f)
+            .lightLevel(state -> 15) // TODO: make the block glow dependent on the block rendering, now it glows like a normal torch, fuck
+            .noOcclusion()
+        ));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GlowBlockEntity>> EXAMPLE_BLOCK_ENTITY = BLOCK_ENTITIES.register("glow_be",
+        () -> BlockEntityType.Builder.of(GlowBlockEntity::new, EXAMPLE_BLOCK.get()).build(null));
+
     public static final DeferredItem<BlockItem> EXAMPLE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("example_block", EXAMPLE_BLOCK);
+
+    public static final DeferredBlock<VoidBlock> VOID_BLOCK = BLOCKS.register("void_block",
+        () -> new VoidBlock(BlockBehaviour.Properties.of()
+            .mapColor(MapColor.COLOR_BLACK)
+            .strength(3.0f)
+            .lightLevel(state -> 0)
+            .noOcclusion()
+        ));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<VoidBlockEntity>> VOID_BLOCK_ENTITY = BLOCK_ENTITIES.register("void_be",
+        () -> BlockEntityType.Builder.of(VoidBlockEntity::new, VOID_BLOCK.get()).build(null));
+
+    public static final DeferredItem<BlockItem> VOID_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("void_block", VOID_BLOCK);
+
+
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", new Item.Properties().food(new FoodProperties.Builder().alwaysEdible().nutrition(1).saturationModifier(2f).build()));
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
@@ -59,6 +92,8 @@ public class NixLib {
         .icon(() -> EXAMPLE_ITEM.get().getDefaultInstance())
         .displayItems((parameters, output) -> {
             output.accept(EXAMPLE_ITEM.get());
+            output.accept(EXAMPLE_BLOCK_ITEM.get());
+            output.accept(VOID_BLOCK_ITEM.get());
         }).build());
 
     public static final KeyMapping OPEN_VISUALIZER_KEY = new KeyMapping("key.nixlib.open_visualizer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
@@ -73,6 +108,7 @@ public class NixLib {
 
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
+        BLOCK_ENTITIES.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
 
         NeoForge.EVENT_BUS.addListener(this::onServerStarting);
@@ -80,6 +116,7 @@ public class NixLib {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(ClientModEvents::onClientSetup);
             modEventBus.addListener(ClientModEvents::registerKeys);
+            modEventBus.addListener(ClientModEvents::registerRenderers);
 
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onClientTick);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onRenderLevelStage);
@@ -93,6 +130,7 @@ public class NixLib {
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
             event.accept(EXAMPLE_BLOCK_ITEM);
+            event.accept(VOID_BLOCK_ITEM);
         }
     }
 
@@ -101,9 +139,7 @@ public class NixLib {
     }
 
     public static class ClientModEvents {
-        public static void onClientSetup(FMLClientSetupEvent event) {
-            LOGGER.info("NixLib Client Setup initialized");
-        }
+        public static void onClientSetup(FMLClientSetupEvent event) {}
 
         public static void registerKeys(RegisterKeyMappingsEvent event) {
             event.register(OPEN_VISUALIZER_KEY);
@@ -112,31 +148,27 @@ public class NixLib {
             event.register(OPEN_CONSTELLATION_KEY);
             event.register(OPEN_RAINBOW_KEY);
         }
+
+        public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+            // False - OFF Wallhack, True - ON Wallhack
+            event.registerBlockEntityRenderer(EXAMPLE_BLOCK_ENTITY.get(),
+                ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getRgbAuraShader, false));
+
+            event.registerBlockEntityRenderer(VOID_BLOCK_ENTITY.get(),
+                ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getVoidCoreShader, true));
+        }
     }
 
     public static class ClientRuntimeEvents {
         public static void onClientTick(ClientTickEvent.Post event) {
-            if (OPEN_VISUALIZER_KEY.consumeClick()) {
-                Minecraft.getInstance().setScreen(new MixinListScreen(Minecraft.getInstance().screen));
-            }
-
-            if (OPEN_COSMIC_KEY.consumeClick()) {
-                Minecraft.getInstance().setScreen(new CosmicGuiScreen());
-            }
-
-            if (OPEN_CONSTELLATION_KEY.consumeClick()) {
-                Minecraft.getInstance().setScreen(new ConstellationGameScreen());
-            }
-
-            if (OPEN_RAINBOW_KEY.consumeClick()) {
-                Minecraft.getInstance().setScreen(new TestRainbowScreen());
-            }
+            if (OPEN_VISUALIZER_KEY.consumeClick()) Minecraft.getInstance().setScreen(new MixinListScreen(Minecraft.getInstance().screen));
+            if (OPEN_COSMIC_KEY.consumeClick()) Minecraft.getInstance().setScreen(new CosmicGuiScreen());
+            if (OPEN_CONSTELLATION_KEY.consumeClick()) Minecraft.getInstance().setScreen(new ConstellationGameScreen());
+            if (OPEN_RAINBOW_KEY.consumeClick()) Minecraft.getInstance().setScreen(new TestRainbowScreen());
 
             if (TEST_SHADER_KEY.consumeClick()) {
                 ShaderAPI.toggle(new BlackHoleShader(0.8f, 10.0f));
-                Minecraft.getInstance().player.displayClientMessage(Component.literal("World Shader Toggled!"), true);
             }
-
             ShaderAPI.tick();
         }
 
