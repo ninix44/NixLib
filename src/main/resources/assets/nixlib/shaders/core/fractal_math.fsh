@@ -1,69 +1,55 @@
 #version 150
 
-uniform float uTime;
 uniform vec2 uResolution;
-uniform vec2 uMouse;
+uniform vec2 uOffset;
+uniform float uZoom;
 
 in vec2 texCoord;
 out vec4 fragColor;
 
-vec2 cSq(vec2 z) {
-    return vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y);
+vec3 palette(float t) {
+    vec3 a = vec3(0.5, 0.5, 0.5);
+    vec3 b = vec3(0.5, 0.5, 0.5);
+    vec3 c = vec3(1.0, 1.0, 1.0);
+    vec3 d = vec3(0.30, 0.20, 0.20);
+    return a + b * cos(6.28318 * (c * t + d));
 }
 
 void main() {
-    vec2 uv = texCoord;
-
-    vec2 p = (uv - 0.5) * 2.0;
+    vec2 uv = texCoord - 0.5;
 
     if (uResolution.y > 0.0) {
-        p.x *= uResolution.x / uResolution.y;
+        uv.x *= uResolution.x / uResolution.y;
     }
 
-    float zoom = 1.8 + 0.4 * sin(uTime * 0.2);
-    vec2 z = p * zoom;
+    vec2 c = uOffset + vec2(uv.x, -uv.y) * uZoom;
 
-    vec2 c;
+    vec2 z = vec2(0.0);
 
-    if (length(uMouse) < 10.0) {
-        float t = uTime * 0.5;
-        c = vec2(
-            0.7885 * cos(t),
-            0.7885 * sin(t * 1.4)
-        );
-        c += vec2(0.05 * sin(t * 3.0), 0.05 * cos(t * 3.0));
-    } else {
-        vec2 m = (uMouse / uResolution - 0.5) * 2.0;
-        if (uResolution.y > 0.0) m.x *= uResolution.x / uResolution.y;
-        c = m * 2.0;
-        c.y = -c.y;
-    }
+    float iter = 0.0;
+    float maxIter = 100.0 + 50.0 * log(1.0 / (uZoom + 0.0000001));
+    if (maxIter > 500.0) maxIter = 500.0;
 
-    float i = 0.0;
-    float maxIter = 128.0;
     float d = 0.0;
 
-    for(i = 0.0; i < maxIter; i++) {
-        z = cSq(z) + c;
+    for (iter = 0.0; iter < maxIter; iter++) {
+        z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
         d = dot(z, z);
-        if(d > 20.0) break;
+        if (d > 40.0) break;
     }
 
-    vec3 col = vec3(1.0);
+    vec3 col = vec3(0.0);
 
-    if (i < maxIter) {
+    if (iter < maxIter) {
+        float log_zn = log(d) / 2.0;
+        float nu = log(log_zn / log(2.0)) / log(2.0);
+        float t = iter + 1.0 - nu;
 
-        float smoothVal = i - log2(log2(d)) + 4.0;
-        smoothVal = smoothVal / maxIter;
+        t = t * 0.02;
+        col = palette(t);
 
-        float intensity = smoothstep(0.0, 0.2, smoothVal);
-
-
-        float shade = 1.0 - pow(i / maxIter, 0.5);
-        col = vec3(shade);
-
-    } else {
-        col = vec3(0.0);
+        float edge = smoothstep(0.0, 1.0, iter / 50.0);
+        col = mix(vec3(1.0), col, edge);
     }
 
     fragColor = vec4(col, 1.0);
