@@ -61,7 +61,9 @@ public class NixLib {
         () -> new GlowBlock(BlockBehaviour.Properties.of()
             .mapColor(MapColor.STONE)
             .strength(2.0f)
-            .lightLevel(state -> 15) // TODO: make the block glow dependent on the block rendering, now it glows like a normal torch, fuck
+            // IMPORTANT: lightLevel must be 0!!!!!
+            // if you enable lightLevel, the flashlight's yellow light will drown out your RGB glow (or other glow)!!!!!
+            .lightLevel(state -> 0)
             .noOcclusion()
         ));
 
@@ -149,13 +151,76 @@ public class NixLib {
             event.register(OPEN_RAINBOW_KEY);
         }
 
+
+        // Settings cheat sheet
+        // You create a new Settings() object, and then call its methods using a dot "."
+
         public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
-            // False - OFF Wallhack, True - ON Wallhack
+
+            // 1. FLOOR ONLY (without ball inside)
+            /*
+            ShaderBlockRenderer.Settings floorOnly = new ShaderBlockRenderer.Settings()
+                .solid(true)       // draw the block itself? = yes
+                .floor(4.0f)       // Turn "ON" the floor and set the radius to 4.0 blocks
+                .noCenter();       // turn off the ball inside
+
+            // event.registerBlockEntityRenderer(EXAMPLE_BLOCK_ENTITY.get(),
+            //    ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getRgbAuraShader, floorOnly));
+            */
+
+
+            // 2. ONLY THE BALL INSIDE (no floor)
+            /*
+            ShaderBlockRenderer.Settings centerOnly = new ShaderBlockRenderer.Settings()
+                .solid(true)       // draw the block itself? = yes
+                .noFloor()         // turn "OFF" the floor
+                .center(1.5f);     // turn on the ball inside and set the radius to 1.5
+
+            // event.registerBlockEntityRenderer(EXAMPLE_BLOCK_ENTITY.get(),
+            //    ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getRgbAuraShader, centerOnly));
+            */
+
+
+            // 3. EVERYTHING AT ONCE (Both the floor and the ball)
+
+            /*
+            ShaderBlockRenderer.Settings allFeatures = new ShaderBlockRenderer.Settings()
+                .solid(true)       // draw the block itself? = yes
+                .floor(5.0f)       // Turn "ON" the floor and set the radius to 5.0 blocks
+                .center(1.2f);     // turn on the ball inside and set the radius to 1.2
+
+            // event.registerBlockEntityRenderer(EXAMPLE_BLOCK_ENTITY.get(),
+            //    ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getRgbAuraShader, allFeatures));
+            */
+
+
+            // 4. (Only light, no solid block)
+            /*
+            ShaderBlockRenderer.Settings ghostSettings = new ShaderBlockRenderer.Settings()
+                .solid(false)      // draw the block itself? = NO
+                .center(2.0f)      // draw only the glowing ball
+                .noFloor();        // turn "OFF" the floor
+
+            // event.registerBlockEntityRenderer(EXAMPLE_BLOCK_ENTITY.get(),
+            //    ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getRgbAuraShader, ghostSettings));
+            */
+
+            ShaderBlockRenderer.Settings currentExampleSettings = new ShaderBlockRenderer.Settings()
+                .solid(true)
+                .floor(4.5f)
+                .center(1.3f);
+
             event.registerBlockEntityRenderer(EXAMPLE_BLOCK_ENTITY.get(),
-                ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getRgbAuraShader, false));
+                ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getRgbAuraShader, currentExampleSettings));
+
+
+            ShaderBlockRenderer.Settings voidSettings = new ShaderBlockRenderer.Settings()
+                .solid(true)
+                .noFloor()
+                .center(3.0f);
 
             event.registerBlockEntityRenderer(VOID_BLOCK_ENTITY.get(),
-                ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getVoidCoreShader, true));
+                ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getVoidCoreShader, voidSettings));
         }
     }
 

@@ -30,11 +30,6 @@ public class TitleScreenMixin {
     @Unique
     private static final ResourceLocation WHITE_TEXTURE = ResourceLocation.withDefaultNamespace("textures/misc/white.png");
 
-    @Inject(method = "init", at = @At("TAIL"))
-    private void setCustomSplash(CallbackInfo ci) {
-        this.splash = new SplashRenderer("Thank you SSKirillSS :> "); // thank you really SSKirillSS
-    }
-
     @Inject(method = "render", at = @At("HEAD"))
     private void renderCosmicBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         cosmicTime += partialTick * 0.01f;

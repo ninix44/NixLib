@@ -5,12 +5,13 @@ import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
 
 import java.util.function.Consumer;
 
 /**
  * Rendering Utilities
- * A collection of helper methods to simplify shader rendering in GUIs
+ * A collection of helper methods to simplify shader rendering in GUIs and World
  * Handles OpenGL state management (Blending, Culling, Depth Test) automatically
  */
 public class NixRenderUtils {
@@ -20,7 +21,6 @@ public class NixRenderUtils {
     /**
      * Easy Mode: Draw a textured rectangle with a Shader
      * Use this for cards, backgrounds, icons, etc
-     *
      * @param poseMatrix   The position matrix (usually {@code guiGraphics.pose().last().pose()}).
      * @param x            X position on screen.
      * @param y            Y position on screen.
@@ -45,7 +45,6 @@ public class NixRenderUtils {
      * Flexible Mode: Draw any shape (Triangle, Hexagon, Star)
      * Automatically disables Backface Culling and Depth Testing to ensure the geometry
      * is visible in the GUI layer, regardless of vertex order or Z-level
-     *
      * @param shader       The shader instance.
      * @param uniformSetup A lambda to set shader uniforms.
      * @param vertexPusher A lambda where you define your vertices using the provided {@link BufferBuilder}.
@@ -55,7 +54,6 @@ public class NixRenderUtils {
         if (shader == null) return;
 
         // setup RenderSystem
-
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
 
@@ -77,7 +75,6 @@ public class NixRenderUtils {
 
         // user geometry logic
         vertexPusher.accept(buffer);
-
 
         // upload and draw
         try {
@@ -123,6 +120,7 @@ public class NixRenderUtils {
 
     /**
      * 3D Block Mode: Draw a Cube with a Shader
+     * This method manually builds 6 faces of a cube (Top, Bottom, North, South, West, East).
      * @param matrix           The pose matrix.
      * @param shader           The shader instance.
      * @param seeThroughWalls  IF TRUE: You will see the block through walls (Wallhack). IF FALSE: Normal behavior.
@@ -142,7 +140,6 @@ public class NixRenderUtils {
         }
 
         RenderSystem.depthMask(false);
-
         RenderSystem.setShader(() -> shader);
         if (uniformSetup != null) uniformSetup.accept(shader);
 
@@ -186,6 +183,90 @@ public class NixRenderUtils {
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
         RenderSystem.enableCull();
+        RenderSystem.disableBlend();
+    }
+
+    public static void drawLightPlane(Matrix4f matrix, ShaderInstance shader, float centerX, float centerY, float centerZ, float radius, Consumer<ShaderInstance> uniformSetup) {
+        if (shader == null) return;
+
+        setupLightState(shader, uniformSetup);
+
+        Tesselator tesselator = Tesselator.getInstance();
+        BufferBuilder builder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+
+        float minX = centerX - radius;
+        float maxX = centerX + radius;
+        float minZ = centerZ - radius;
+        float maxZ = centerZ + radius;
+        float y = centerY;
+
+        builder.addVertex(matrix, minX, y, minZ).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, maxX, y, minZ).setUv(1, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, maxX, y, maxZ).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, minX, y, maxZ).setUv(0, 1).setColor(255, 255, 255, 255);
+
+        try {
+            BufferUploader.drawWithShader(builder.buildOrThrow());
+        } catch (Exception ignored) {}
+        restoreState();
+    }
+
+    public static void draw3DLightCross(Matrix4f matrix, ShaderInstance shader, float centerX, float centerY, float centerZ, float radius, Consumer<ShaderInstance> uniformSetup) {
+        if (shader == null) return;
+
+        setupLightState(shader, uniformSetup);
+
+        Tesselator tesselator = Tesselator.getInstance();
+        BufferBuilder builder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+
+        float r = radius;
+
+        builder.addVertex(matrix, centerX - r, centerY, centerZ - r).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX + r, centerY, centerZ - r).setUv(1, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX + r, centerY, centerZ + r).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX - r, centerY, centerZ + r).setUv(0, 1).setColor(255, 255, 255, 255);
+
+        builder.addVertex(matrix, centerX - r, centerY - r, centerZ).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX + r, centerY - r, centerZ).setUv(1, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX + r, centerY + r, centerZ).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX - r, centerY + r, centerZ).setUv(0, 1).setColor(255, 255, 255, 255);
+
+        builder.addVertex(matrix, centerX, centerY - r, centerZ - r).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX, centerY - r, centerZ + r).setUv(1, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX, centerY + r, centerZ + r).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX, centerY + r, centerZ - r).setUv(0, 1).setColor(255, 255, 255, 255);
+
+        float d = r * 0.707f;
+        builder.addVertex(matrix, centerX - d, centerY - r, centerZ - d).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX + d, centerY - r, centerZ + d).setUv(1, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX + d, centerY + r, centerZ + d).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX - d, centerY + r, centerZ - d).setUv(0, 1).setColor(255, 255, 255, 255);
+
+        builder.addVertex(matrix, centerX - d, centerY - r, centerZ + d).setUv(0, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX + d, centerY - r, centerZ - d).setUv(1, 0).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX + d, centerY + r, centerZ - d).setUv(1, 1).setColor(255, 255, 255, 255);
+        builder.addVertex(matrix, centerX - d, centerY + r, centerZ + d).setUv(0, 1).setColor(255, 255, 255, 255);
+
+        try {
+            BufferUploader.drawWithShader(builder.buildOrThrow());
+        } catch (Exception ignored) {}
+        restoreState();
+    }
+
+    private static void setupLightState(ShaderInstance shader, Consumer<ShaderInstance> uniformSetup) {
+        RenderSystem.enableBlend();
+        RenderSystem.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE);
+        RenderSystem.disableCull();
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(false);
+
+        RenderSystem.setShader(() -> shader);
+        if (uniformSetup != null) uniformSetup.accept(shader);
+    }
+
+    private static void restoreState() {
+        RenderSystem.depthMask(true);
+        RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
     }
 }
