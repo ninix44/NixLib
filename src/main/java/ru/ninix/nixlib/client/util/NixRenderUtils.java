@@ -18,22 +18,16 @@ public class NixRenderUtils {
 
     private static final ResourceLocation WHITE_TEX = ResourceLocation.withDefaultNamespace("textures/misc/white.png");
 
-    /**
-     * Easy Mode: Draw a textured rectangle with a Shader
-     * Use this for cards, backgrounds, icons, etc
-     * @param poseMatrix   The position matrix (usually {@code guiGraphics.pose().last().pose()}).
-     * @param x            X position on screen.
-     * @param y            Y position on screen.
-     * @param w            Width of the quad.
-     * @param h            Height of the quad.
-     * @param shader       The shader instance to use.
-     * @param uniformSetup A lambda to set shader uniforms (e.g. Time, MousePos). Can be null.
-     */
+    public static void safeSetUniform(ShaderInstance shader, String name, float value) {
+        if (shader.getUniform(name) != null) {
+            shader.getUniform(name).set(value);
+        }
+    }
+
 
     public static void drawTexturedQuad(Matrix4f poseMatrix, float x, float y, float w, float h, ShaderInstance shader, Consumer<ShaderInstance> uniformSetup) {
         drawCustomGeometry(shader, uniformSetup, (buffer) -> {
             float z = 0.0f;
-            // standard quadrilateral (counter-clockwise)
             buffer.addVertex(poseMatrix, x, y + h, z).setUv(0, 1);
             buffer.addVertex(poseMatrix, x + w, y + h, z).setUv(1, 1);
             buffer.addVertex(poseMatrix, x + w, y, z).setUv(1, 0);
@@ -79,7 +73,8 @@ public class NixRenderUtils {
         // upload and draw
         try {
             BufferUploader.drawWithShader(buffer.buildOrThrow());
-        } catch (Exception e) {
+        } catch (Exception ignored) {
+            //} catch (Exception e) {
         }
 
         RenderSystem.enableDepthTest();

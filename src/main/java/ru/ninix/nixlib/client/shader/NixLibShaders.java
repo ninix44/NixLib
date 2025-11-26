@@ -21,6 +21,7 @@ public class NixLibShaders {
     @Nullable private static ShaderInstance rainbowShader;
     @Nullable private static ShaderInstance rgbAuraShader;
     @Nullable private static ShaderInstance voidCoreShader;
+    @Nullable private static ShaderInstance testCoreShader;
 
     @SubscribeEvent
     public static void registerShaders(RegisterShadersEvent event) {
@@ -29,6 +30,7 @@ public class NixLibShaders {
         register(event, "rainbow_shape", s -> rainbowShader = s);
         register(event, "rgb_aura", s -> rgbAuraShader = s);
         register(event, "void_core", s -> voidCoreShader = s);
+        register(event, "test_core", s -> testCoreShader = s);
     }
 
     private static void register(RegisterShadersEvent event, String path, Consumer<ShaderInstance> setter) {
@@ -52,4 +54,5 @@ public class NixLibShaders {
     @Nullable public static ShaderInstance getRainbowShader() { return rainbowShader; }
     @Nullable public static ShaderInstance getRgbAuraShader() { return rgbAuraShader; }
     @Nullable public static ShaderInstance getVoidCoreShader() { return voidCoreShader; }
+    @Nullable public static ShaderInstance getTestCoreShader() { return testCoreShader; }
 }

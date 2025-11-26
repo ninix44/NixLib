@@ -41,10 +41,8 @@ import ru.ninix.nixlib.client.renderer.ShaderBlockRenderer;
 import ru.ninix.nixlib.client.shader.NixLibShaders;
 import ru.ninix.nixlib.client.shader.ShaderAPI;
 import ru.ninix.nixlib.client.shader.impl.BlackHoleShader;
-import ru.ninix.nixlib.common.block.GlowBlock;
-import ru.ninix.nixlib.common.block.GlowBlockEntity;
-import ru.ninix.nixlib.common.block.VoidBlock;
-import ru.ninix.nixlib.common.block.VoidBlockEntity;
+import ru.ninix.nixlib.client.util.NixRenderUtils;
+import ru.ninix.nixlib.common.block.*;
 import ru.ninix.nixlib.visualizer.MixinListScreen;
 
 @Mod(NixLib.MODID)
@@ -57,37 +55,39 @@ public class NixLib {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 
+    // IMPORTANT: lightLevel must be 0!!!!!
+    // if you enable lightLevel, the flashlight's yellow light will drown out your RGB glow (or other glow)!!!!!
+
+    // blocks
     public static final DeferredBlock<GlowBlock> EXAMPLE_BLOCK = BLOCKS.register("example_block",
-        () -> new GlowBlock(BlockBehaviour.Properties.of()
-            .mapColor(MapColor.STONE)
-            .strength(2.0f)
-            // IMPORTANT: lightLevel must be 0!!!!!
-            // if you enable lightLevel, the flashlight's yellow light will drown out your RGB glow (or other glow)!!!!!
-            .lightLevel(state -> 0)
-            .noOcclusion()
-        ));
-
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GlowBlockEntity>> EXAMPLE_BLOCK_ENTITY = BLOCK_ENTITIES.register("glow_be",
-        () -> BlockEntityType.Builder.of(GlowBlockEntity::new, EXAMPLE_BLOCK.get()).build(null));
-
-    public static final DeferredItem<BlockItem> EXAMPLE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("example_block", EXAMPLE_BLOCK);
+        () -> new GlowBlock(BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(2.0f).lightLevel(state -> 0).noOcclusion()));
 
     public static final DeferredBlock<VoidBlock> VOID_BLOCK = BLOCKS.register("void_block",
-        () -> new VoidBlock(BlockBehaviour.Properties.of()
-            .mapColor(MapColor.COLOR_BLACK)
-            .strength(3.0f)
-            .lightLevel(state -> 0)
-            .noOcclusion()
-        ));
+        () -> new VoidBlock(BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(3.0f).lightLevel(state -> 0).noOcclusion()));
+
+    public static final DeferredBlock<TestBlock> TEST_BLOCK = BLOCKS.register("test_block",
+        () -> new TestBlock(BlockBehaviour.Properties.of().mapColor(MapColor.DIAMOND).strength(2.0f).lightLevel(state -> 0).noOcclusion()));
+
+
+    // block entities
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GlowBlockEntity>> EXAMPLE_BLOCK_ENTITY = BLOCK_ENTITIES.register("glow_be",
+        () -> BlockEntityType.Builder.of(GlowBlockEntity::new, EXAMPLE_BLOCK.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<VoidBlockEntity>> VOID_BLOCK_ENTITY = BLOCK_ENTITIES.register("void_be",
         () -> BlockEntityType.Builder.of(VoidBlockEntity::new, VOID_BLOCK.get()).build(null));
 
-    public static final DeferredItem<BlockItem> VOID_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("void_block", VOID_BLOCK);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TestBlockEntity>> TEST_BLOCK_ENTITY = BLOCK_ENTITIES.register("test_be",
+        () -> BlockEntityType.Builder.of(TestBlockEntity::new, TEST_BLOCK.get()).build(null));
 
+
+    // items
+    public static final DeferredItem<BlockItem> EXAMPLE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("example_block", EXAMPLE_BLOCK);
+    public static final DeferredItem<BlockItem> VOID_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("void_block", VOID_BLOCK);
+    public static final DeferredItem<BlockItem> TEST_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("test_block", TEST_BLOCK);
 
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", new Item.Properties().food(new FoodProperties.Builder().alwaysEdible().nutrition(1).saturationModifier(2f).build()));
 
+    // tabs
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
         .title(Component.translatable("itemGroup.nixlib"))
         .withTabsBefore(CreativeModeTabs.COMBAT)
@@ -96,6 +96,7 @@ public class NixLib {
             output.accept(EXAMPLE_ITEM.get());
             output.accept(EXAMPLE_BLOCK_ITEM.get());
             output.accept(VOID_BLOCK_ITEM.get());
+            output.accept(TEST_BLOCK_ITEM.get());
         }).build());
 
     public static final KeyMapping OPEN_VISUALIZER_KEY = new KeyMapping("key.nixlib.open_visualizer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
@@ -133,6 +134,7 @@ public class NixLib {
         if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
             event.accept(EXAMPLE_BLOCK_ITEM);
             event.accept(VOID_BLOCK_ITEM);
+            event.accept(TEST_BLOCK_ITEM);
         }
     }
 
@@ -205,6 +207,21 @@ public class NixLib {
             //    ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getRgbAuraShader, ghostSettings));
             */
 
+            // WITH CUSTOM UNIFORMS (Advanced) - Like Test Block
+            /*
+            ShaderBlockRenderer.Settings customUniformSettings = new ShaderBlockRenderer.Settings()
+                .solid(true)        // draw the block itself? = yes
+                .center(2.5f)       // radius of the center ball
+                .floor(3.0f)        // radius of the floor effect
+                .withUniforms((shader, time) -> {
+                    NixRenderUtils.safeSetUniform(shader, "uBlue", 1.0f);  // Example: turn on blue channel
+                    NixRenderUtils.safeSetUniform(shader, "uSpeed", 0.5f); // Example: change animation speed
+                });
+
+            // event.registerBlockEntityRenderer(TEST_BLOCK_ENTITY.get(),
+            //    ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getTestCoreShader, customUniformSettings));
+            */
+
             ShaderBlockRenderer.Settings currentExampleSettings = new ShaderBlockRenderer.Settings()
                 .solid(true)
                 .floor(4.5f)
@@ -221,6 +238,19 @@ public class NixLib {
 
             event.registerBlockEntityRenderer(VOID_BLOCK_ENTITY.get(),
                 ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getVoidCoreShader, voidSettings));
+
+            // testBlock static-shader
+            ShaderBlockRenderer.Settings testSettings = new ShaderBlockRenderer.Settings()
+                .solid(true)
+                .center(2.5f)
+                .floor(3.0f)
+                .withUniforms((shader, time) -> {
+                    NixRenderUtils.safeSetUniform(shader, "uBlue", 0.0f);
+                    NixRenderUtils.safeSetUniform(shader, "uSpeed", 0.0f);
+                });
+
+            event.registerBlockEntityRenderer(TEST_BLOCK_ENTITY.get(),
+                ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getTestCoreShader, testSettings));
         }
     }
 
