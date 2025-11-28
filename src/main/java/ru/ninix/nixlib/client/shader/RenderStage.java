@@ -1,6 +1,7 @@
 package ru.ninix.nixlib.client.shader;
 
 public enum RenderStage {
+    // everything works +W
     /**
      * Applies to the world (pre-GUI).
      */

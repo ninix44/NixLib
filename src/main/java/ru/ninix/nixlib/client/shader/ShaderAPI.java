@@ -67,6 +67,11 @@ public final class ShaderAPI {
                 worldShaders.forEach(ShaderBase::onDisable);
                 worldShaders.clear();
             }
+
+            if (!screenShaders.isEmpty()) {
+                screenShaders.forEach(ShaderBase::onDisable);
+                screenShaders.clear();
+            }
             return;
         }
 
@@ -95,6 +100,13 @@ public final class ShaderAPI {
         }
     }
 
+    public static void renderScreenShaders(float partialTicks) {
+        if (screenShaders.isEmpty()) return;
+        handleResize();
+        for (ShaderBase shader : screenShaders) {
+            shader.process(partialTicks);
+        }
+    }
 
     private static void handleResize() {
         int width = mc.getWindow().getWidth();

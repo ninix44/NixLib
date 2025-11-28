@@ -6,6 +6,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -21,10 +22,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.loading.FMLEnvironment;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.event.*;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
@@ -99,7 +97,7 @@ public class NixLib {
 
     public static final KeyMapping OPEN_VISUALIZER_KEY = new KeyMapping("key.nixlib.open_visualizer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
     public static final KeyMapping OPEN_COSMIC_KEY = new KeyMapping("key.nixlib.open_cosmic", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, "key.categories.nixlib");
-    public static final KeyMapping TEST_SHADER_KEY = new KeyMapping("key.nixlib.test_shader", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, "key.categories.nixlib");
+    public static final KeyMapping TEST_SHADER_KEY = new KeyMapping("key.nixlib.test_shader", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_O, "key.categories.nixlib");
     public static final KeyMapping OPEN_CONSTELLATION_KEY = new KeyMapping("key.nixlib.open_constellation", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, "key.categories.nixlib");
     public static final KeyMapping OPEN_RAINBOW_KEY = new KeyMapping("key.nixlib.open_rainbow", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, "key.categories.nixlib");
     public static final KeyMapping OPEN_FRACTAL_KEY = new KeyMapping("key.nixlib.open_fractal", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F, "key.categories.nixlib");
@@ -120,9 +118,11 @@ public class NixLib {
             modEventBus.addListener(ClientModEvents::onClientSetup);
             modEventBus.addListener(ClientModEvents::registerKeys);
             modEventBus.addListener(ClientModEvents::registerRenderers);
+            modEventBus.addListener(ClientModEvents::registerGuiLayers);
 
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onClientTick);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onRenderLevelStage);
+            NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onScreenRenderPost);
         }
     }
 
@@ -155,6 +155,13 @@ public class NixLib {
             event.register(OPEN_CHLADNI_KEY);
         }
 
+        public static void registerGuiLayers(RegisterGuiLayersEvent event) {
+            event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(MODID, "screen_shader"), (guiGraphics, deltaTracker) -> {
+                if (Minecraft.getInstance().screen == null) {
+                    ShaderAPI.renderScreenShaders(deltaTracker.getGameTimeDeltaPartialTick(false));
+                }
+            });
+        }
 
         // Settings cheat sheet
         // You create a new Settings() object, and then call its methods using a dot "."
@@ -274,6 +281,10 @@ public class NixLib {
             if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
                 ShaderAPI.renderWorldShaders(event.getPartialTick().getGameTimeDeltaTicks());
             }
+        }
+
+        public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
+            ShaderAPI.renderScreenShaders(event.getPartialTick());
         }
     }
 }

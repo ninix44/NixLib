@@ -14,7 +14,8 @@ public class BlackHoleShader extends ShaderBase {
     private float swirl;
 
     public BlackHoleShader(float strength, float swirl) {
-        super(ResourceLocation.fromNamespaceAndPath("nixlib", "shaders/post/black_hole.json"), RenderStage.WORLD);
+        super(ResourceLocation.fromNamespaceAndPath("nixlib", "shaders/post/black_hole.json"), RenderStage.SCREEN);
+        //super(ResourceLocation.fromNamespaceAndPath("nixlib", "shaders/post/black_hole.json"), RenderStage.WORLD);
         this.strength = strength;
         this.swirl = swirl;
         this.setDurationTicks(-1);

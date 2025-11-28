@@ -17,7 +17,8 @@ public class BloomShader extends ShaderBase {
     private float radius;
 
     public BloomShader(float intensity, float threshold, float radius) {
-        super(ResourceLocation.fromNamespaceAndPath("nixlib", "shaders/post/bloom.json"), RenderStage.WORLD);
+        super(ResourceLocation.fromNamespaceAndPath("nixlib", "shaders/post/bloom.json"), RenderStage.SCREEN);
+        //super(ResourceLocation.fromNamespaceAndPath("nixlib", "shaders/post/bloom.json"), RenderStage.WORLD);
         this.intensity = intensity;
         this.threshold = threshold;
         this.radius = radius;
