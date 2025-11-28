@@ -23,6 +23,7 @@ public class NixLibShaders {
     @Nullable private static ShaderInstance voidCoreShader;
     @Nullable private static ShaderInstance testCoreShader;
     @Nullable private static ShaderInstance fractalShader;
+    @Nullable private static ShaderInstance chladniPlateShader;
 
     @SubscribeEvent
     public static void registerShaders(RegisterShadersEvent event) {
@@ -33,6 +34,7 @@ public class NixLibShaders {
         register(event, "void_core", s -> voidCoreShader = s);
         register(event, "test_core", s -> testCoreShader = s);
         register(event, "fractal_math", s -> fractalShader = s);
+        register(event, "chladni_plate", s -> chladniPlateShader = s);
     }
 
     private static void register(RegisterShadersEvent event, String path, Consumer<ShaderInstance> setter) {
@@ -58,4 +60,5 @@ public class NixLibShaders {
     @Nullable public static ShaderInstance getVoidCoreShader() { return voidCoreShader; }
     @Nullable public static ShaderInstance getTestCoreShader() { return testCoreShader; }
     @Nullable public static ShaderInstance getFractalShader() { return fractalShader; }
+    @Nullable public static ShaderInstance getChladniPlateShader() { return chladniPlateShader; }
 }

@@ -34,9 +34,7 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
-import ru.ninix.nixlib.client.gui.ConstellationGameScreen;
-import ru.ninix.nixlib.client.gui.CosmicGuiScreen;
-import ru.ninix.nixlib.client.gui.TestRainbowScreen;
+import ru.ninix.nixlib.client.gui.*;
 import ru.ninix.nixlib.client.renderer.ShaderBlockRenderer;
 import ru.ninix.nixlib.client.shader.NixLibShaders;
 import ru.ninix.nixlib.client.shader.ShaderAPI;
@@ -44,7 +42,6 @@ import ru.ninix.nixlib.client.shader.impl.BlackHoleShader;
 import ru.ninix.nixlib.client.util.NixRenderUtils;
 import ru.ninix.nixlib.common.block.*;
 import ru.ninix.nixlib.visualizer.MixinListScreen;
-import ru.ninix.nixlib.client.gui.FractalGuiScreen;
 
 @Mod(NixLib.MODID)
 public class NixLib {
@@ -106,6 +103,7 @@ public class NixLib {
     public static final KeyMapping OPEN_CONSTELLATION_KEY = new KeyMapping("key.nixlib.open_constellation", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, "key.categories.nixlib");
     public static final KeyMapping OPEN_RAINBOW_KEY = new KeyMapping("key.nixlib.open_rainbow", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, "key.categories.nixlib");
     public static final KeyMapping OPEN_FRACTAL_KEY = new KeyMapping("key.nixlib.open_fractal", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F, "key.categories.nixlib");
+    public static final KeyMapping OPEN_CHLADNI_KEY = new KeyMapping("key.nixlib.open_chladni", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, "key.categories.nixlib");
 
     public NixLib(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
@@ -154,6 +152,7 @@ public class NixLib {
             event.register(OPEN_CONSTELLATION_KEY);
             event.register(OPEN_RAINBOW_KEY);
             event.register(OPEN_FRACTAL_KEY);
+            event.register(OPEN_CHLADNI_KEY);
         }
 
 
@@ -264,7 +263,7 @@ public class NixLib {
             if (OPEN_CONSTELLATION_KEY.consumeClick()) Minecraft.getInstance().setScreen(new ConstellationGameScreen());
             if (OPEN_RAINBOW_KEY.consumeClick()) Minecraft.getInstance().setScreen(new TestRainbowScreen());
             if (OPEN_FRACTAL_KEY.consumeClick()) Minecraft.getInstance().setScreen(new FractalGuiScreen());
-
+            if (OPEN_CHLADNI_KEY.consumeClick()) Minecraft.getInstance().setScreen(new ChladniGameScreen());
             if (TEST_SHADER_KEY.consumeClick()) {
                 ShaderAPI.toggle(new BlackHoleShader(0.8f, 10.0f));
             }
