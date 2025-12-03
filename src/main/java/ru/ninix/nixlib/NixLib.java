@@ -38,8 +38,12 @@ import ru.ninix.nixlib.client.shader.NixLibShaders;
 import ru.ninix.nixlib.client.shader.ShaderAPI;
 import ru.ninix.nixlib.client.shader.impl.BlackHoleShader;
 import ru.ninix.nixlib.client.util.NixRenderUtils;
+import ru.ninix.nixlib.client.vfx.NixVFXPresets;
+import ru.ninix.nixlib.client.vfx.VFXRenderer;
 import ru.ninix.nixlib.common.block.*;
 import ru.ninix.nixlib.visualizer.MixinListScreen;
+
+import java.awt.*;
 
 @Mod(NixLib.MODID)
 public class NixLib {
@@ -102,6 +106,10 @@ public class NixLib {
     public static final KeyMapping OPEN_RAINBOW_KEY = new KeyMapping("key.nixlib.open_rainbow", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, "key.categories.nixlib");
     public static final KeyMapping OPEN_FRACTAL_KEY = new KeyMapping("key.nixlib.open_fractal", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F, "key.categories.nixlib");
     public static final KeyMapping OPEN_CHLADNI_KEY = new KeyMapping("key.nixlib.open_chladni", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, "key.categories.nixlib");
+    public static final KeyMapping VFX_KEY_Z = new KeyMapping("key.nixlib.vfx_z", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_Z, "key.categories.nixlib");
+    public static final KeyMapping VFX_KEY_X = new KeyMapping("key.nixlib.vfx_x", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_X, "key.categories.nixlib");
+    public static final KeyMapping VFX_KEY_C = new KeyMapping("key.nixlib.vfx_c", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.nixlib");
+    public static final KeyMapping VFX_KEY_V = new KeyMapping("key.nixlib.vfx_v", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
 
     public NixLib(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
@@ -123,6 +131,7 @@ public class NixLib {
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onClientTick);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onRenderLevelStage);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onScreenRenderPost);
+            NeoForge.EVENT_BUS.register(VFXRenderer.class);
         }
     }
 
@@ -153,6 +162,10 @@ public class NixLib {
             event.register(OPEN_RAINBOW_KEY);
             event.register(OPEN_FRACTAL_KEY);
             event.register(OPEN_CHLADNI_KEY);
+            event.register(VFX_KEY_Z);
+            event.register(VFX_KEY_X);
+            event.register(VFX_KEY_C);
+            event.register(VFX_KEY_V);
         }
 
         public static void registerGuiLayers(RegisterGuiLayersEvent event) {
@@ -274,6 +287,58 @@ public class NixLib {
             if (TEST_SHADER_KEY.consumeClick()) {
                 ShaderAPI.toggle(new BlackHoleShader(0.8f, 10.0f));
             }
+
+            if (Minecraft.getInstance().player != null) {
+
+                if (VFX_KEY_Z.consumeClick()) {
+                    VFXRenderer.spawnEffect(
+                        Minecraft.getInstance().player.position().add(0, 1.5, 0),
+                        Minecraft.getInstance().player.getYRot(),
+                        0f,
+                        NixVFXPresets.GALAXY,
+                        4000L,
+                        Color.CYAN,
+                        Color.MAGENTA
+                    );
+                }
+
+                if (VFX_KEY_X.consumeClick()) {
+                    VFXRenderer.spawnEffect(
+                        Minecraft.getInstance().player.position().add(0, 1.5, 0),
+                        Minecraft.getInstance().player.getYRot(),
+                        0f,
+                        NixVFXPresets.DNA_HELIX,
+                        5000L,
+                        Color.GREEN,
+                        new Color(0, 100, 255)
+                    );
+                }
+
+                if (VFX_KEY_C.consumeClick()) {
+                    VFXRenderer.spawnEffect(
+                        Minecraft.getInstance().player.position().add(0, 2.5, 0),
+                        Minecraft.getInstance().player.getYRot(),
+                        0f,
+                        NixVFXPresets.LORENZ_ATTRACTOR,
+                        6000L,
+                        new Color(255, 100, 0),
+                        Color.YELLOW
+                    );
+                }
+
+                if (VFX_KEY_V.consumeClick()) {
+                    VFXRenderer.spawnEffect(
+                        Minecraft.getInstance().player.position().add(0, 1.5, 0),
+                        Minecraft.getInstance().player.getYRot(),
+                        0f,
+                        NixVFXPresets.REALITY_TEAR,
+                        3000L,
+                        Color.RED,
+                        Color.BLACK
+                    );
+                }
+            }
+
             ShaderAPI.tick();
         }
 
