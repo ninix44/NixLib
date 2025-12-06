@@ -25,6 +25,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.client.event.*;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -32,15 +33,20 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
+import ru.ninix.nixlib.client.cutscene.ClientCutsceneManager;
 import ru.ninix.nixlib.client.gui.*;
 import ru.ninix.nixlib.client.renderer.ShaderBlockRenderer;
 import ru.ninix.nixlib.client.shader.NixLibShaders;
 import ru.ninix.nixlib.client.shader.ShaderAPI;
 import ru.ninix.nixlib.client.shader.impl.BlackHoleShader;
+import ru.ninix.nixlib.client.util.CameraStateManager;
 import ru.ninix.nixlib.client.util.NixRenderUtils;
 import ru.ninix.nixlib.client.vfx.NixVFXPresets;
 import ru.ninix.nixlib.client.vfx.VFXRenderer;
+import ru.ninix.nixlib.command.CutsceneCommand;
 import ru.ninix.nixlib.common.block.*;
+import ru.ninix.nixlib.item.CameraItem;
+import ru.ninix.nixlib.network.CutsceneNetwork;
 import ru.ninix.nixlib.visualizer.MixinListScreen;
 
 import java.awt.*;
@@ -84,8 +90,8 @@ public class NixLib {
     public static final DeferredItem<BlockItem> EXAMPLE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("example_block", EXAMPLE_BLOCK);
     public static final DeferredItem<BlockItem> VOID_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("void_block", VOID_BLOCK);
     public static final DeferredItem<BlockItem> TEST_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("test_block", TEST_BLOCK);
-
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", new Item.Properties().food(new FoodProperties.Builder().alwaysEdible().nutrition(1).saturationModifier(2f).build()));
+    public static final DeferredItem<Item> CAMERA_ITEM = ITEMS.register("camera", () -> new CameraItem(new Item.Properties().stacksTo(1)));
 
     // tabs
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
@@ -97,6 +103,7 @@ public class NixLib {
             output.accept(EXAMPLE_BLOCK_ITEM.get());
             output.accept(VOID_BLOCK_ITEM.get());
             output.accept(TEST_BLOCK_ITEM.get());
+            output.accept(CAMERA_ITEM.get());
         }).build());
 
     public static final KeyMapping OPEN_VISUALIZER_KEY = new KeyMapping("key.nixlib.open_visualizer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
@@ -114,6 +121,7 @@ public class NixLib {
     public NixLib(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::addCreative);
+        modEventBus.addListener(CutsceneNetwork::register);
 
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
@@ -121,6 +129,7 @@ public class NixLib {
         CREATIVE_MODE_TABS.register(modEventBus);
 
         NeoForge.EVENT_BUS.addListener(this::onServerStarting);
+        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(ClientModEvents::onClientSetup);
@@ -131,6 +140,11 @@ public class NixLib {
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onClientTick);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onRenderLevelStage);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onScreenRenderPost);
+            NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onComputeCameraAngles);
+            NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onComputeFov);
+            NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onMouseScroll);
+            NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onRenderPlayer);
+
             NeoForge.EVENT_BUS.register(VFXRenderer.class);
         }
     }
@@ -149,6 +163,10 @@ public class NixLib {
 
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.info("NixLib: Server starting...");
+    }
+
+    public void onRegisterCommands(RegisterCommandsEvent event) {
+        CutsceneCommand.register(event.getDispatcher());
     }
 
     public static class ClientModEvents {
@@ -278,6 +296,26 @@ public class NixLib {
 
     public static class ClientRuntimeEvents {
         public static void onClientTick(ClientTickEvent.Post event) {
+            ClientCutsceneManager.tick();
+            CameraStateManager.tick();
+
+            Minecraft mc = Minecraft.getInstance();
+
+            if (mc.player != null && mc.player.isHolding(CAMERA_ITEM.get())) {
+                CameraStateManager.activate();
+
+                long window = mc.getWindow().getWindow();
+                if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_LEFT)) {
+                    CameraStateManager.adjustRoll(-2.0f);
+                }
+                if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_RIGHT)) {
+                    CameraStateManager.adjustRoll(2.0f);
+                }
+                if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_DOWN)) {
+                    CameraStateManager.resetRoll();
+                }
+            }
+
             if (OPEN_VISUALIZER_KEY.consumeClick()) Minecraft.getInstance().setScreen(new MixinListScreen(Minecraft.getInstance().screen));
             if (OPEN_COSMIC_KEY.consumeClick()) Minecraft.getInstance().setScreen(new CosmicGuiScreen());
             if (OPEN_CONSTELLATION_KEY.consumeClick()) Minecraft.getInstance().setScreen(new ConstellationGameScreen());
@@ -343,13 +381,61 @@ public class NixLib {
         }
 
         public static void onRenderLevelStage(RenderLevelStageEvent event) {
+            if (ClientCutsceneManager.isPlaying() && event.getStage() == RenderLevelStageEvent.Stage.AFTER_SKY) {
+                var poseStack = event.getPoseStack();
+                var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+
+                double dx = ClientCutsceneManager.cameraX - camera.getPosition().x;
+                double dy = ClientCutsceneManager.cameraY - camera.getPosition().y;
+                double dz = ClientCutsceneManager.cameraZ - camera.getPosition().z;
+
+                poseStack.translate(-dx, -dy, -dz);
+            }
+
             if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
                 ShaderAPI.renderWorldShaders(event.getPartialTick().getGameTimeDeltaTicks());
             }
         }
 
+        public static void onRenderPlayer(RenderPlayerEvent.Pre event) {
+            if (ClientCutsceneManager.isPlaying() && event.getEntity().equals(Minecraft.getInstance().player)) {
+                event.setCanceled(true);
+            }
+        }
+
         public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
             ShaderAPI.renderScreenShaders(event.getPartialTick());
+        }
+
+        public static void onComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
+            if (ClientCutsceneManager.isPlaying()) {
+                ClientCutsceneManager.updateCamera(event);
+            }
+            else if (CameraStateManager.isActive()) {
+                event.setRoll(CameraStateManager.getRoll());
+            }
+        }
+
+        public static void onComputeFov(ViewportEvent.ComputeFov event) {
+            if (ClientCutsceneManager.isPlaying()) {
+                event.setFOV(ClientCutsceneManager.interpolatedFov);
+            }
+            else if (CameraStateManager.isActive()) {
+                event.setFOV(CameraStateManager.getFov());
+            }
+        }
+
+        public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player == null) return;
+
+            if (mc.player.isHolding(CAMERA_ITEM.get())) {
+                boolean isCtrl = GLFW.glfwGetKey(mc.getWindow().getWindow(), GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS;
+                if (isCtrl) {
+                    CameraStateManager.updateFov(event.getScrollDeltaY());
+                    event.setCanceled(true);
+                }
+            }
         }
     }
 }

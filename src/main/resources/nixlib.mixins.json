@@ -9,6 +9,8 @@
     "TitleScreenMixin"
   ],
   "client": [
+    "client.GameRendererMixin",
+    "client.LocalPlayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
