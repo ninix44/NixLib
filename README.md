@@ -11,7 +11,10 @@ Core rendering library for **NeoForge 1.21**
 - **Custom Geometry Support**: Draw triangles, hexagons, or any complex shapes with shaders using `NixRenderUtils`.
 - **Post-Processing API**: Easily apply full-screen shaders (like Black Hole effects) to the game world.
 - **Mixin Visualizer**: Built-in tool to see active mixins.
-- 
+- **Cutscene Engine**: Create smooth camera paths and cinematic sequences.
+- **Camera Control**: API to modify **FOV** and apply camera **Roll** (tilt).
+- **Interpolation Utils**: Helpers for smooth animations (Lerp, Easing, Bezier, etc);
+
 ## TODOs:
 *   [x] **Cutscenes** – Camera paths and sequencing.
 *   [ ] **Bedrock Parser** – Loading `.json` Bedrock models.
