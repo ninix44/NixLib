@@ -13,7 +13,7 @@ Core rendering library for **NeoForge 1.21**
 - **Mixin Visualizer**: Built-in tool to see active mixins.
 - 
 ## TODOs:
-*   [ ] **Cutscenes** – Camera paths and sequencing.
+*   [x] **Cutscenes** – Camera paths and sequencing.
 *   [ ] **Bedrock Parser** – Loading `.json` Bedrock models.
 *   [ ] **Particle System** – Custom particle system `later`
   *   [x] **VFX System** – Complex particle rendering logic.
