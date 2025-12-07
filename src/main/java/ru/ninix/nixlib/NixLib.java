@@ -1,12 +1,17 @@
 package ru.ninix.nixlib;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.logging.LogUtils;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -35,10 +40,12 @@ import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import ru.ninix.nixlib.client.cutscene.ClientCutsceneManager;
 import ru.ninix.nixlib.client.gui.*;
+import ru.ninix.nixlib.client.renderer.BedrockBlockRenderer;
 import ru.ninix.nixlib.client.renderer.ShaderBlockRenderer;
 import ru.ninix.nixlib.client.shader.NixLibShaders;
 import ru.ninix.nixlib.client.shader.ShaderAPI;
 import ru.ninix.nixlib.client.shader.impl.BlackHoleShader;
+import ru.ninix.nixlib.client.util.BedrockRenderUtils;
 import ru.ninix.nixlib.client.util.CameraStateManager;
 import ru.ninix.nixlib.client.util.NixRenderUtils;
 import ru.ninix.nixlib.client.vfx.NixVFXPresets;
@@ -48,6 +55,8 @@ import ru.ninix.nixlib.common.block.*;
 import ru.ninix.nixlib.item.CameraItem;
 import ru.ninix.nixlib.network.CutsceneNetwork;
 import ru.ninix.nixlib.visualizer.MixinListScreen;
+import ru.ninix.nixlib.client.model.bedrock.BedrockModelLoader;
+import net.minecraft.client.model.geom.ModelLayerLocation;
 
 import java.awt.*;
 
@@ -74,6 +83,8 @@ public class NixLib {
     public static final DeferredBlock<TestBlock> TEST_BLOCK = BLOCKS.register("test_block",
         () -> new TestBlock(BlockBehaviour.Properties.of().mapColor(MapColor.DIAMOND).strength(2.0f).lightLevel(state -> 0).noOcclusion()));
 
+    public static final DeferredBlock<BedrockBlock> BEDROCK_BLOCK = BLOCKS.register("bedrock_block",
+        () -> new BedrockBlock(BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_ORANGE).strength(2.0f).lightLevel(state -> 0).noOcclusion()));
 
     // block entities
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GlowBlockEntity>> EXAMPLE_BLOCK_ENTITY = BLOCK_ENTITIES.register("glow_be",
@@ -85,6 +96,8 @@ public class NixLib {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TestBlockEntity>> TEST_BLOCK_ENTITY = BLOCK_ENTITIES.register("test_be",
         () -> BlockEntityType.Builder.of(TestBlockEntity::new, TEST_BLOCK.get()).build(null));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BedrockBlockEntity>> BEDROCK_BLOCK_ENTITY = BLOCK_ENTITIES.register("bedrock_be",
+        () -> BlockEntityType.Builder.of(BedrockBlockEntity::new, BEDROCK_BLOCK.get()).build(null));
 
     // items
     public static final DeferredItem<BlockItem> EXAMPLE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("example_block", EXAMPLE_BLOCK);
@@ -92,6 +105,7 @@ public class NixLib {
     public static final DeferredItem<BlockItem> TEST_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("test_block", TEST_BLOCK);
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", new Item.Properties().food(new FoodProperties.Builder().alwaysEdible().nutrition(1).saturationModifier(2f).build()));
     public static final DeferredItem<Item> CAMERA_ITEM = ITEMS.register("camera", () -> new CameraItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<BlockItem> BEDROCK_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("bedrock_block", BEDROCK_BLOCK);
 
     // tabs
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
@@ -104,9 +118,11 @@ public class NixLib {
             output.accept(VOID_BLOCK_ITEM.get());
             output.accept(TEST_BLOCK_ITEM.get());
             output.accept(CAMERA_ITEM.get());
+            output.accept(BEDROCK_BLOCK_ITEM.get());
         }).build());
 
     public static final KeyMapping OPEN_VISUALIZER_KEY = new KeyMapping("key.nixlib.open_visualizer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
+    public static final KeyMapping TOGGLE_MODEL_KEY = new KeyMapping("key.nixlib.toggle_model", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_I, "key.categories.nixlib");
     public static final KeyMapping OPEN_COSMIC_KEY = new KeyMapping("key.nixlib.open_cosmic", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, "key.categories.nixlib");
     public static final KeyMapping TEST_SHADER_KEY = new KeyMapping("key.nixlib.test_shader", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_O, "key.categories.nixlib");
     public static final KeyMapping OPEN_CONSTELLATION_KEY = new KeyMapping("key.nixlib.open_constellation", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, "key.categories.nixlib");
@@ -117,6 +133,11 @@ public class NixLib {
     public static final KeyMapping VFX_KEY_X = new KeyMapping("key.nixlib.vfx_x", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_X, "key.categories.nixlib");
     public static final KeyMapping VFX_KEY_C = new KeyMapping("key.nixlib.vfx_c", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.nixlib");
     public static final KeyMapping VFX_KEY_V = new KeyMapping("key.nixlib.vfx_v", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
+
+    public static final ModelLayerLocation TEST_BEDROCK_LAYER = new ModelLayerLocation(
+        ResourceLocation.fromNamespaceAndPath(MODID, "test_cube"), "main");
+
+    public static boolean isCustomModelActive = false;
 
     public NixLib(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
@@ -136,14 +157,15 @@ public class NixLib {
             modEventBus.addListener(ClientModEvents::registerKeys);
             modEventBus.addListener(ClientModEvents::registerRenderers);
             modEventBus.addListener(ClientModEvents::registerGuiLayers);
+            modEventBus.addListener(ClientModEvents::registerLayerDefinitions);
 
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onClientTick);
-            //NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onRenderLevelStage);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onScreenRenderPost);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onComputeCameraAngles);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onComputeFov);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onMouseScroll);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onRenderPlayer);
+            NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onRenderHand);
 
             NeoForge.EVENT_BUS.register(VFXRenderer.class);
         }
@@ -172,7 +194,17 @@ public class NixLib {
     public static class ClientModEvents {
         public static void onClientSetup(FMLClientSetupEvent event) {}
 
+        public static void registerLayerDefinitions(EntityRenderersEvent.RegisterLayerDefinitions event) {
+            event.registerLayerDefinition(TEST_BEDROCK_LAYER, () ->
+                BedrockModelLoader.load(
+                    ResourceLocation.fromNamespaceAndPath(MODID, "models/bedrock/test_cube.json"),
+                    "geometry.test_cube"
+                )
+            );
+        }
+
         public static void registerKeys(RegisterKeyMappingsEvent event) {
+            event.register(TOGGLE_MODEL_KEY);
             event.register(OPEN_VISUALIZER_KEY);
             event.register(OPEN_COSMIC_KEY);
             event.register(TEST_SHADER_KEY);
@@ -291,6 +323,24 @@ public class NixLib {
 
             event.registerBlockEntityRenderer(TEST_BLOCK_ENTITY.get(),
                 ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getTestCoreShader, testSettings));
+
+            event.registerBlockEntityRenderer(BEDROCK_BLOCK_ENTITY.get(), ctx ->
+                new BedrockBlockRenderer<>(
+                    ctx,
+                    TEST_BEDROCK_LAYER,
+                    ResourceLocation.fromNamespaceAndPath(MODID, "textures/block/test_cube.png")) {
+
+                    @Override
+                    protected void animate(BedrockBlockEntity entity, ModelPart root, float partialTick) {
+                        float time = (entity.getLevel().getGameTime() + partialTick) * 0.05f;
+                        ModelPart mainBone = getBone("root");
+                        if (mainBone != null) {
+                            mainBone.yRot = time;
+                            mainBone.y = 24.0F + (float) Math.sin(time) * 1.5f;
+                        }
+                    }
+                }
+            );
         }
     }
 
@@ -300,6 +350,14 @@ public class NixLib {
             CameraStateManager.tick();
 
             Minecraft mc = Minecraft.getInstance();
+
+            if (TOGGLE_MODEL_KEY.consumeClick()) {
+                isCustomModelActive = !isCustomModelActive;
+                if (mc.player != null) {
+                    String status = isCustomModelActive ? "ENABLED" : "DISABLED";
+                    mc.player.displayClientMessage(Component.literal("Custom Model: " + status).withStyle(isCustomModelActive ? ChatFormatting.GREEN : ChatFormatting.RED), true);
+                }
+            }
 
             if (mc.player != null && mc.player.isHolding(CAMERA_ITEM.get())) {
                 CameraStateManager.activate();
@@ -386,6 +444,36 @@ public class NixLib {
 
         public static void onRenderPlayer(RenderPlayerEvent.Pre event) {
             if (ClientCutsceneManager.isPlaying() && event.getEntity().equals(Minecraft.getInstance().player)) {
+                event.setCanceled(true);
+                return;
+            }
+
+            if (isCustomModelActive && event.getEntity().equals(Minecraft.getInstance().player)) {
+                event.setCanceled(true);
+
+                PoseStack poseStack = event.getPoseStack();
+
+                ModelPart model = Minecraft.getInstance().getEntityModels().bakeLayer(TEST_BEDROCK_LAYER);
+                ResourceLocation texture = ResourceLocation.fromNamespaceAndPath(MODID, "textures/block/test_cube.png");
+
+                float bodyRot = Mth.lerp(event.getPartialTick(), event.getEntity().yBodyRotO, event.getEntity().yBodyRot);
+
+                BedrockRenderUtils.renderModel(
+                    poseStack,
+                    model,
+                    texture,
+                    event.getMultiBufferSource(),
+                    event.getPackedLight(),
+                    OverlayTexture.NO_OVERLAY,
+                    0, 1.5f, 0,
+                    -1.0f, -1.0f, 1.0f,
+                    0, 180.0F - bodyRot, 0
+                );
+            }
+        }
+
+        public static void onRenderHand(RenderHandEvent event) {
+            if (isCustomModelActive) {
                 event.setCanceled(true);
             }
         }
