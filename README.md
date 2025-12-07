@@ -7,7 +7,7 @@ Core rendering library for **NeoForge 1.21**
 ## 🥞Current Features
 - **Easy GLSL Shaders in GUI**: Render any `.fsh` / `.vsh` shader on screens without dealing with `Tesselator` or `BufferBuilder`.
 - **Volumetric Block Shaders**: Create complex energy effects (Glowing Orbs, Floor Auras, Solid Cubes) using a simple Builder API (`ShaderBlockRenderer`).
-- **Advanced VFX Engine**: Spawn math-based particle systems (Galaxies, DNA, Chaos Attractors) with a single line of code. Fully extensible via `IVFXEffect` interface. (NEW!!!)
+- **Advanced VFX Engine**: Spawn math-based particle systems (Galaxies, DNA, Chaos Attractors) with a single line of code. Fully extensible via `IVFXEffect` interface.
 - **Custom Geometry Support**: Draw triangles, hexagons, or any complex shapes with shaders using `NixRenderUtils`.
 - **Post-Processing API**: Easily apply full-screen shaders (like Black Hole effects) to the game world.
 - **Mixin Visualizer**: Built-in tool to see active mixins.

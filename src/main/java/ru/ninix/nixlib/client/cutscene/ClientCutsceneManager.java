@@ -93,6 +93,8 @@ public class ClientCutsceneManager {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
+        if (mc.isPaused()) return;
+
         if (mc.options.getCameraType() != CameraType.FIRST_PERSON) {
             mc.options.setCameraType(CameraType.FIRST_PERSON);
         }
@@ -233,7 +235,7 @@ public class ClientCutsceneManager {
         }
     }
 
-    private static void stopPlayback() {
+    public static void stopPlayback() {
         if (!isPlaying) return;
         isPlaying = false;
         trackedEntity = null;
