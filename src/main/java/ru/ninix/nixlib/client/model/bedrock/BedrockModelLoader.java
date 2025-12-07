@@ -25,25 +25,23 @@ public class BedrockModelLoader {
                 BedrockPOJO pojo = GSON.fromJson(reader, BedrockPOJO.class);
 
                 if (pojo.geometryList == null || pojo.geometryList.isEmpty()) {
-                    throw new RuntimeException("No geometry found in " + location);
+                    throw new RuntimeException("BedrockModelLoader: No geometry found in " + location);
                 }
 
-                BedrockPOJO.Geometry geo = pojo.geometryList.getFirst();
+                BedrockPOJO.Geometry geo = pojo.geometryList.get(0);
                 if (geometryName != null) {
                     for (BedrockPOJO.Geometry g : pojo.geometryList) {
-                        if (geometryName.equals(g.description.identifier)) {
+                        if (g.description.identifier.equals(geometryName)) {
                             geo = g;
                             break;
                         }
                     }
                 }
-
                 return createDefinition(geo);
             }
         } catch (IOException e) {
             NixLib.LOGGER.error("Failed to load Bedrock model: " + location, e);
-            MeshDefinition mesh = new MeshDefinition();
-            return LayerDefinition.create(mesh, 64, 64);
+            return LayerDefinition.create(new MeshDefinition(), 64, 64);
         }
     }
 
@@ -51,64 +49,60 @@ public class BedrockModelLoader {
         MeshDefinition mesh = new MeshDefinition();
         PartDefinition root = mesh.getRoot();
 
-        Map<String, PartDefinition> parts = new HashMap<>();
-        Map<String, float[]> bonePivots = new HashMap<>();
-        Map<String, BedrockPOJO.Bone> boneMap = new HashMap<>();
-        for (BedrockPOJO.Bone bone : geo.bones) {
-            boneMap.put(bone.name, bone);
+        Map<String, BedrockPOJO.Bone> boneDataMap = new HashMap<>();
+        Map<String, PartDefinition> createdParts = new HashMap<>();
+        Map<String, float[]> absolutePivots = new HashMap<>();
+
+        if (geo.bones != null) {
+            for (BedrockPOJO.Bone bone : geo.bones) {
+                boneDataMap.put(bone.name, bone);
+            }
+            for (BedrockPOJO.Bone bone : geo.bones) {
+                if (!createdParts.containsKey(bone.name)) {
+                    buildBone(bone, boneDataMap, createdParts, absolutePivots, root);
+                }
+            }
         }
 
-        for (BedrockPOJO.Bone bone : geo.bones) {
-            buildBone(bone, boneMap, parts, bonePivots, root);
-        }
+        int texW = (int) geo.description.texture_width;
+        int texH = (int) geo.description.texture_height;
+        if (texW <= 0) texW = 64;
+        if (texH <= 0) texH = 64;
 
-        int texWidth = (int) geo.description.texture_width;
-        int texHeight = (int) geo.description.texture_height;
-        if (texWidth == 0) texWidth = 64;
-        if (texHeight == 0) texHeight = 64;
-
-        return LayerDefinition.create(mesh, texWidth, texHeight);
+        return LayerDefinition.create(mesh, texW, texH);
     }
 
     private static void buildBone(BedrockPOJO.Bone bone,
                                   Map<String, BedrockPOJO.Bone> boneMap,
                                   Map<String, PartDefinition> createdParts,
                                   Map<String, float[]> absolutePivots,
-                                  PartDefinition meshRoot) {
+                                  PartDefinition root) {
 
-        if (createdParts.containsKey(bone.name)) return;
+        PartDefinition parentPart = root;
+        float pX = 0, pY = 0, pZ = 0;
 
-        PartDefinition parentPart = meshRoot;
-        float parentPivotX = 0;
-        float parentPivotY = 0;
-        float parentPivotZ = 0;
-
-        if (bone.parent != null && !bone.parent.isEmpty()) {
+        if (bone.parent != null) {
             BedrockPOJO.Bone parentBone = boneMap.get(bone.parent);
             if (parentBone != null) {
                 if (!createdParts.containsKey(parentBone.name)) {
-                    buildBone(parentBone, boneMap, createdParts, absolutePivots, meshRoot);
+                    buildBone(parentBone, boneMap, createdParts, absolutePivots, root);
                 }
                 parentPart = createdParts.get(parentBone.name);
                 float[] pp = absolutePivots.get(parentBone.name);
-                parentPivotX = pp[0];
-                parentPivotY = pp[1];
-                parentPivotZ = pp[2];
+                pX = pp[0]; pY = pp[1]; pZ = pp[2];
             }
         }
 
-        CubeListBuilder builder = CubeListBuilder.create();
-
-        float pivotX = bone.pivot != null ? bone.pivot.get(0) : 0;
-        float pivotY = bone.pivot != null ? bone.pivot.get(1) : 0;
-        float pivotZ = bone.pivot != null ? bone.pivot.get(2) : 0;
-
-        absolutePivots.put(bone.name, new float[]{pivotX, pivotY, pivotZ});
+        float bX = bone.pivot != null ? bone.pivot.get(0) : 0;
+        float bY = bone.pivot != null ? bone.pivot.get(1) : 0;
+        float bZ = bone.pivot != null ? bone.pivot.get(2) : 0;
+        absolutePivots.put(bone.name, new float[]{bX, bY, bZ});
 
         float rotX = bone.rotation != null ? (float) Math.toRadians(-bone.rotation.get(0)) : 0;
         float rotY = bone.rotation != null ? (float) Math.toRadians(-bone.rotation.get(1)) : 0;
         float rotZ = bone.rotation != null ? (float) Math.toRadians(bone.rotation.get(2)) : 0;
 
+        CubeListBuilder builder = CubeListBuilder.create();
         if (bone.cubes != null) {
             for (BedrockPOJO.Cube cube : bone.cubes) {
                 float originX = cube.origin.get(0);
@@ -119,8 +113,8 @@ public class BedrockModelLoader {
                 float sizeY = cube.size.get(1);
                 float sizeZ = cube.size.get(2);
 
-                float inflate = cube.inflate != null ? cube.inflate : (bone.inflate != 0 ? bone.inflate : 0);
-                boolean mirror = cube.mirror != null ? cube.mirror : bone.mirror;
+                float inflate = cube.inflate != null ? cube.inflate : (bone.inflate != null ? bone.inflate : 0);
+                boolean mirror = cube.mirror != null ? cube.mirror : (bone.mirror);
 
                 int u = 0, v = 0;
                 if (cube.uv != null && cube.uv.isJsonArray()) {
@@ -130,25 +124,20 @@ public class BedrockModelLoader {
                 }
 
                 builder.mirror(mirror);
+                builder.texOffs(u, v);
 
-                float boxX = -(originX + sizeX) + pivotX;
-                float boxY = -(originY + sizeY) + pivotY;
-                float boxZ = originZ - pivotZ;
+                float relX = originX - bX;
+                float relY = -(originY + sizeY) + bY;
+                float relZ = originZ - bZ;
 
-                builder.texOffs(u, v)
-                    .addBox(
-                        boxX,
-                        boxY,
-                        boxZ,
-                        sizeX, sizeY, sizeZ,
-                        new CubeDeformation(inflate)
-                    );
+
+                builder.addBox(relX, relY, relZ, sizeX, sizeY, sizeZ, new CubeDeformation(inflate));
             }
         }
 
-        float offsetX = -(pivotX - parentPivotX);
-        float offsetY = -(pivotY - parentPivotY);
-        float offsetZ = pivotZ - parentPivotZ;
+        float offsetX = bX - pX;
+        float offsetY = -(bY - pY);
+        float offsetZ = bZ - pZ;
 
         if (bone.parent == null) {
             offsetY += 24.0F;

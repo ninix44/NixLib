@@ -30,7 +30,8 @@ public class BedrockPOJO {
         public List<Float> rotation;
         public List<Cube> cubes;
         public boolean mirror;
-        public float inflate;
+        public Float inflate;
+        public Boolean neverRender;
     }
 
     public static class Cube {

@@ -57,6 +57,7 @@ import ru.ninix.nixlib.network.CutsceneNetwork;
 import ru.ninix.nixlib.visualizer.MixinListScreen;
 import ru.ninix.nixlib.client.model.bedrock.BedrockModelLoader;
 import net.minecraft.client.model.geom.ModelLayerLocation;
+import ru.ninix.nixlib.client.renderer.UniversalBedrockRenderer;
 
 import java.awt.*;
 
@@ -86,6 +87,9 @@ public class NixLib {
     public static final DeferredBlock<BedrockBlock> BEDROCK_BLOCK = BLOCKS.register("bedrock_block",
         () -> new BedrockBlock(BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_ORANGE).strength(2.0f).lightLevel(state -> 0).noOcclusion()));
 
+    public static final DeferredBlock<TestBenchBlock> TEST_BENCH_BLOCK = BLOCKS.register("test_bench",
+        () -> new TestBenchBlock(BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_RED).strength(1.0f).noOcclusion()));
+
     // block entities
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GlowBlockEntity>> EXAMPLE_BLOCK_ENTITY = BLOCK_ENTITIES.register("glow_be",
         () -> BlockEntityType.Builder.of(GlowBlockEntity::new, EXAMPLE_BLOCK.get()).build(null));
@@ -99,6 +103,9 @@ public class NixLib {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BedrockBlockEntity>> BEDROCK_BLOCK_ENTITY = BLOCK_ENTITIES.register("bedrock_be",
         () -> BlockEntityType.Builder.of(BedrockBlockEntity::new, BEDROCK_BLOCK.get()).build(null));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TestBenchBlockEntity>> TEST_BENCH_BE = BLOCK_ENTITIES.register("test_bench_be",
+        () -> BlockEntityType.Builder.of(TestBenchBlockEntity::new, TEST_BENCH_BLOCK.get()).build(null));
+
     // items
     public static final DeferredItem<BlockItem> EXAMPLE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("example_block", EXAMPLE_BLOCK);
     public static final DeferredItem<BlockItem> VOID_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("void_block", VOID_BLOCK);
@@ -106,6 +113,7 @@ public class NixLib {
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", new Item.Properties().food(new FoodProperties.Builder().alwaysEdible().nutrition(1).saturationModifier(2f).build()));
     public static final DeferredItem<Item> CAMERA_ITEM = ITEMS.register("camera", () -> new CameraItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<BlockItem> BEDROCK_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("bedrock_block", BEDROCK_BLOCK);
+    public static final DeferredItem<BlockItem> TEST_BENCH_ITEM = ITEMS.registerSimpleBlockItem("test_bench", TEST_BENCH_BLOCK);
 
     // tabs
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
@@ -119,6 +127,7 @@ public class NixLib {
             output.accept(TEST_BLOCK_ITEM.get());
             output.accept(CAMERA_ITEM.get());
             output.accept(BEDROCK_BLOCK_ITEM.get());
+            output.accept(TEST_BENCH_ITEM.get());
         }).build());
 
     public static final KeyMapping OPEN_VISUALIZER_KEY = new KeyMapping("key.nixlib.open_visualizer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
@@ -134,8 +143,13 @@ public class NixLib {
     public static final KeyMapping VFX_KEY_C = new KeyMapping("key.nixlib.vfx_c", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.nixlib");
     public static final KeyMapping VFX_KEY_V = new KeyMapping("key.nixlib.vfx_v", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.nixlib");
 
+    // model layers
     public static final ModelLayerLocation TEST_BEDROCK_LAYER = new ModelLayerLocation(
         ResourceLocation.fromNamespaceAndPath(MODID, "test_cube"), "main");
+
+    public static final ModelLayerLocation TEST_BENCH_LAYER = new ModelLayerLocation(
+        ResourceLocation.fromNamespaceAndPath(MODID, "test_bench"), "main");
+
 
     public static boolean isCustomModelActive = false;
 
@@ -180,6 +194,7 @@ public class NixLib {
             event.accept(EXAMPLE_BLOCK_ITEM);
             event.accept(VOID_BLOCK_ITEM);
             event.accept(TEST_BLOCK_ITEM);
+            event.accept(TEST_BENCH_ITEM);
         }
     }
 
@@ -199,6 +214,13 @@ public class NixLib {
                 BedrockModelLoader.load(
                     ResourceLocation.fromNamespaceAndPath(MODID, "models/bedrock/test_cube.json"),
                     "geometry.test_cube"
+                )
+            );
+
+            event.registerLayerDefinition(TEST_BENCH_LAYER, () ->
+                BedrockModelLoader.load(
+                    ResourceLocation.fromNamespaceAndPath(MODID, "models/bedrock/test_bench.json"),
+                    "geometry.test_bench"
                 )
             );
         }
@@ -325,21 +347,24 @@ public class NixLib {
                 ctx -> new ShaderBlockRenderer<>(ctx, NixLibShaders::getTestCoreShader, testSettings));
 
             event.registerBlockEntityRenderer(BEDROCK_BLOCK_ENTITY.get(), ctx ->
-                new BedrockBlockRenderer<>(
+                new UniversalBedrockRenderer<>(
                     ctx,
                     TEST_BEDROCK_LAYER,
-                    ResourceLocation.fromNamespaceAndPath(MODID, "textures/block/test_cube.png")) {
+                    ResourceLocation.fromNamespaceAndPath(MODID, "textures/block/test_cube.png")
+                )
+                    .setOffset(0.5f, 1.5f, 0.5f)
+                    .setScale(1.0f)
+                    .setRotation(0, 180, 0)
+            );
 
-                    @Override
-                    protected void animate(BedrockBlockEntity entity, ModelPart root, float partialTick) {
-                        float time = (entity.getLevel().getGameTime() + partialTick) * 0.05f;
-                        ModelPart mainBone = getBone("root");
-                        if (mainBone != null) {
-                            mainBone.yRot = time;
-                            mainBone.y = 24.0F + (float) Math.sin(time) * 1.5f;
-                        }
-                    }
-                }
+            event.registerBlockEntityRenderer(TEST_BENCH_BE.get(), ctx ->
+                new UniversalBedrockRenderer<>(
+                    ctx,
+                    TEST_BENCH_LAYER,
+                    ResourceLocation.fromNamespaceAndPath(MODID, "textures/block/test_bench.png")
+                )
+                    .setOffset(0.5f, 1.5f, 0.5f)
+                    .setScale(1.0f)
             );
         }
     }
@@ -354,8 +379,6 @@ public class NixLib {
             if (TOGGLE_MODEL_KEY.consumeClick()) {
                 isCustomModelActive = !isCustomModelActive;
                 if (mc.player != null) {
-                    String status = isCustomModelActive ? "ENABLED" : "DISABLED";
-                    mc.player.displayClientMessage(Component.literal("Custom Model: " + status).withStyle(isCustomModelActive ? ChatFormatting.GREEN : ChatFormatting.RED), true);
                 }
             }
 
