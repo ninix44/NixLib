@@ -15,14 +15,12 @@ import ru.ninix.nixlib.cutscene.CutsceneManager;
 
 public class CutsceneNetwork {
 
-
     public record PlayCutscenePacket(String json) implements CustomPacketPayload {
         public static final Type<PlayCutscenePacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(NixLib.MODID, "play_cutscene"));
         public static final StreamCodec<ByteBuf, PlayCutscenePacket> CODEC = StreamCodec.composite(
             ByteBufCodecs.STRING_UTF8, PlayCutscenePacket::json,
             PlayCutscenePacket::new
         );
-
         @Override
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
@@ -35,11 +33,9 @@ public class CutsceneNetwork {
             ByteBufCodecs.FLOAT, AddKeyframePacket::roll,
             AddKeyframePacket::new
         );
-
         @Override
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
-
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1.0");

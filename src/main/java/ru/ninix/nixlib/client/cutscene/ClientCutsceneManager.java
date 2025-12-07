@@ -6,7 +6,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 import org.joml.Quaternionf;
@@ -26,9 +25,6 @@ public class ClientCutsceneManager {
 
     private static Cutscene currentCutscene;
     private static boolean isPlaying = false;
-
-    private static boolean waitingForChunks = false;
-
     private static int totalTicksElapsed;
 
     private static GameType originalGameType;
@@ -36,7 +32,7 @@ public class ClientCutsceneManager {
     private static double originalX, originalY, originalZ;
     private static float originalYaw, originalPitch;
     private static CameraType originalCameraType;
-    private static float originalFov;
+    private static int originalFov;
 
     public static double cameraX, cameraY, cameraZ;
     public static double interpolatedFov;
@@ -68,18 +64,15 @@ public class ClientCutsceneManager {
         originalGameType = mc.gameMode.getPlayerMode();
         originalHideGui = mc.options.hideGui;
         originalCameraType = mc.options.getCameraType();
-        originalFov = mc.options.fov().get().floatValue();
+        originalFov = mc.options.fov().get();
 
         isPlaying = true;
-        waitingForChunks = true;
         totalTicksElapsed = 0;
         trackedEntity = null;
 
-        if ((currentCutscene.useEntity || currentCutscene.lookAtEntity) && currentCutscene.entityName != null && !currentCutscene.entityName.equals("???")) {
+        if (currentCutscene.useEntity && currentCutscene.entityName != null) {
             trackedEntity = StreamSupport.stream(mc.level.entitiesForRendering().spliterator(), false)
-                .filter(e -> e.getName().getString().equalsIgnoreCase(currentCutscene.entityName)
-                    || e.getType().getDescription().getString().equalsIgnoreCase(currentCutscene.entityName)
-                    || e.getEncodeId().equalsIgnoreCase(currentCutscene.entityName))
+                .filter(e -> e.getEncodeId() != null && e.getEncodeId().equalsIgnoreCase(currentCutscene.entityName))
                 .min(Comparator.comparingDouble(e -> e.distanceToSqr(mc.player)))
                 .orElse(null);
         }
@@ -92,29 +85,13 @@ public class ClientCutsceneManager {
         mc.options.setCameraType(CameraType.FIRST_PERSON);
 
         updateValues(0);
-        updatePlayerPosition();
+        syncPlayerToCamera();
     }
 
     public static void tick() {
         if (!isPlaying) return;
         Minecraft mc = Minecraft.getInstance();
-
-        if (mc.isPaused()) return;
         if (mc.player == null || mc.level == null) return;
-
-        if (waitingForChunks) {
-            updateValues(0);
-            updatePlayerPosition();
-
-            int chunkX = ((int) cameraX) >> 4;
-            int chunkZ = ((int) cameraZ) >> 4;
-            LevelChunk chunk = mc.level.getChunkSource().getChunk(chunkX, chunkZ, false);
-
-            if (chunk != null) {
-                waitingForChunks = false;
-            }
-            return;
-        }
 
         if (mc.options.getCameraType() != CameraType.FIRST_PERSON) {
             mc.options.setCameraType(CameraType.FIRST_PERSON);
@@ -135,30 +112,40 @@ public class ClientCutsceneManager {
         if (totalTicksElapsed >= totalDuration) {
             stopPlayback();
         } else {
-            updatePlayerPosition();
+            updateValues(totalTicksElapsed);
+            syncPlayerToCamera();
         }
     }
 
-    private static void updatePlayerPosition() {
+    private static void syncPlayerToCamera() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        double targetY = cameraY - mc.player.getEyeHeight();
+        mc.player.noPhysics = true;
 
+        double targetY = cameraY - mc.player.getEyeHeight();
         mc.player.setPos(cameraX, targetY, cameraZ);
+
         mc.player.setDeltaMovement(Vec3.ZERO);
+
+        mc.player.xo = mc.player.getX();
+        mc.player.yo = mc.player.getY();
+        mc.player.zo = mc.player.getZ();
+        mc.player.xOld = mc.player.getX();
+        mc.player.yOld = mc.player.getY();
+        mc.player.zOld = mc.player.getZ();
+
+        mc.player.setYRot(0f);
+        mc.player.setXRot(0f);
+        mc.player.yRotO = 0f;
+        mc.player.xRotO = 0f;
     }
 
     public static void updateCamera(ViewportEvent.ComputeCameraAngles event) {
         if (!isPlaying || currentCutscene == null) return;
 
-        float currentTotalTime;
-        if (waitingForChunks) {
-            currentTotalTime = 0;
-        } else {
-            float partialTick = Minecraft.getInstance().isPaused() ? 0 : (float) event.getPartialTick();
-            currentTotalTime = totalTicksElapsed + partialTick;
-        }
+        float partialTick = (float) event.getPartialTick();
+        float currentTotalTime = totalTicksElapsed + partialTick;
 
         updateValues(currentTotalTime);
 
@@ -168,24 +155,25 @@ public class ClientCutsceneManager {
         float finalPitch;
 
         if (currentCutscene.lookAtEntity && trackedEntity != null) {
-            float pt = Minecraft.getInstance().isPaused() ? 0 : (float) event.getPartialTick();
-            Vec3 target = trackedEntity.getPosition(pt).add(0, trackedEntity.getEyeHeight() * 0.8, 0);
+            Vec3 target = trackedEntity.getPosition(partialTick).add(0, trackedEntity.getEyeHeight(), 0);
             Vec3 cameraPos = new Vec3(cameraX, cameraY, cameraZ);
             Vec3 dir = target.subtract(cameraPos).normalize();
-            finalPitch = (float) Math.toDegrees(Math.asin(-dir.y));
-            finalYaw = (float) Math.toDegrees(Math.atan2(-dir.x, dir.z));
+            finalYaw = (float) Math.toDegrees(Mth.atan2(-dir.x, dir.z));
+            finalPitch = (float) Math.toDegrees(Math.asin(dir.y));
         } else {
-            finalYaw = (float) interpolatedYawRot;
-            finalPitch = (float) interpolatedPitchRot;
+            Vector3f euler = interpolatedQuaternion.getEulerAnglesYXZ(new Vector3f());
+            finalYaw = (float) Math.toDegrees(euler.y);
+            finalPitch = -(float) Math.toDegrees(euler.x);
         }
 
         event.setYaw(finalYaw + shake.y);
-        event.setPitch(finalPitch + shake.x);
+        event.setPitch(-finalPitch + shake.x);
         event.setRoll((float)interpolatedRoll + shake.z);
+
+        syncPlayerToCamera();
     }
 
-    private static double interpolatedYawRot;
-    private static double interpolatedPitchRot;
+    private static Quaternionf interpolatedQuaternion = new Quaternionf();
 
     private static void updateValues(float currentTotalTime) {
         int currentSegment = -1;
@@ -200,20 +188,16 @@ public class ClientCutsceneManager {
             cumulative += duration;
         }
 
-        if (currentSegment == -1) {
-            currentSegment = currentCutscene.keyframes.size() - 2;
-            if(currentSegment < 0) return;
-        }
+        if (currentSegment == -1) return;
 
         int segmentDuration = currentCutscene.keyframes.get(currentSegment + 1).durationTicks;
         float t = (currentTotalTime - cumulative) / (float) segmentDuration;
         t = Mth.clamp(t, 0f, 1f);
 
-        int maxIndex = currentCutscene.keyframes.size() - 1;
+        int p0 = Math.max(0, currentSegment - 1);
         int p1 = currentSegment;
         int p2 = currentSegment + 1;
-        int p0 = Math.max(0, p1 - 1);
-        int p3 = Math.min(maxIndex, p2 + 1);
+        int p3 = Math.min(currentCutscene.keyframes.size() - 1, currentSegment + 2);
 
         Keyframe k0 = currentCutscene.keyframes.get(p0);
         Keyframe k1 = currentCutscene.keyframes.get(p1);
@@ -227,84 +211,66 @@ public class ClientCutsceneManager {
             double offY = interpolate(k0.offsetY, k1.offsetY, k2.offsetY, k3.offsetY, t, type);
             double offZ = interpolate(k0.offsetZ, k1.offsetZ, k2.offsetZ, k3.offsetZ, t, type);
 
-            float pt = Minecraft.getInstance().isPaused() ? 0 : Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
-            Vec3 entityPos = trackedEntity.getPosition(pt);
+            float pt = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
+            Vec3 ep = trackedEntity.getPosition(pt);
 
-            cameraX = entityPos.x + offX;
-            cameraY = entityPos.y + offY;
-            cameraZ = entityPos.z + offZ;
+            cameraX = ep.x + offX;
+            cameraY = ep.y + trackedEntity.getEyeHeight() + offY;
+            cameraZ = ep.z + offZ;
         } else {
             cameraX = interpolate(k0.x, k1.x, k2.x, k3.x, t, type);
             cameraY = interpolate(k0.y, k1.y, k2.y, k3.y, t, type);
             cameraZ = interpolate(k0.z, k1.z, k2.z, k3.z, t, type);
         }
 
-        if (type == InterpolationType.CATMULL_ROM) {
-            interpolatedFov = catmull(k0.fov, k1.fov, k2.fov, k3.fov, t);
-            interpolatedRoll = catmull(k0.roll, k1.roll, k2.roll, k3.roll, t);
-            interpolatedShakeIntensity = catmull(k0.shakeIntensity, k1.shakeIntensity, k2.shakeIntensity, k3.shakeIntensity, t);
-            interpolatedShakeSpeed = catmull(k0.shakeSpeed, k1.shakeSpeed, k2.shakeSpeed, k3.shakeSpeed, t);
-        } else {
-            interpolatedFov = lerp(k1.fov, k2.fov, t, type);
-            interpolatedRoll = lerp(k1.roll, k2.roll, t, type);
-            interpolatedShakeIntensity = lerp(k1.shakeIntensity, k2.shakeIntensity, t, type);
-            interpolatedShakeSpeed = lerp(k1.shakeSpeed, k2.shakeSpeed, t, type);
-        }
-
-        interpolatedFov = Mth.clamp(interpolatedFov, 1.0, 170.0);
-        interpolatedShakeIntensity = Math.max(0, interpolatedShakeIntensity);
+        interpolatedFov = interpolate(k0.fov, k1.fov, k2.fov, k3.fov, t, type);
+        interpolatedRoll = interpolate(k0.roll, k1.roll, k2.roll, k3.roll, t, type);
+        interpolatedShakeIntensity = interpolate(k0.shakeIntensity, k1.shakeIntensity, k2.shakeIntensity, k3.shakeIntensity, t, type);
+        interpolatedShakeSpeed = interpolate(k0.shakeSpeed, k1.shakeSpeed, k2.shakeSpeed, k3.shakeSpeed, t, type);
 
         if (!currentCutscene.lookAtEntity) {
             Quaternionf q0 = fromAngles(k0.pitch, k0.yaw);
             Quaternionf q1 = fromAngles(k1.pitch, k1.yaw);
             Quaternionf q2 = fromAngles(k2.pitch, k2.yaw);
             Quaternionf q3 = fromAngles(k3.pitch, k3.yaw);
-            Quaternionf finalQ;
 
             if (type == InterpolationType.CATMULL_ROM) {
-                finalQ = catmullQ(q0, q1, q2, q3, t);
+                interpolatedQuaternion = catmullQ(q0, q1, q2, q3, t);
             } else {
-                finalQ = q1.slerp(q2, getEased(t, type));
+                float easedT = getEased(t, type);
+                interpolatedQuaternion = q1.slerp(q2, easedT);
             }
-
-            Vector3f euler = finalQ.getEulerAnglesYXZ(new Vector3f());
-            interpolatedYawRot = Math.toDegrees(euler.y);
-            interpolatedPitchRot = Math.toDegrees(euler.x);
         }
     }
 
     private static void stopPlayback() {
         if (!isPlaying) return;
         isPlaying = false;
-        waitingForChunks = false;
         trackedEntity = null;
         Minecraft mc = Minecraft.getInstance();
 
         if (mc.player != null) {
+            mc.player.noPhysics = false;
             mc.player.setPos(originalX, originalY, originalZ);
             mc.player.setYRot(originalYaw);
             mc.player.setXRot(originalPitch);
             mc.player.setDeltaMovement(Vec3.ZERO);
-            mc.player.noPhysics = false;
         }
 
         mc.options.hideGui = originalHideGui;
-        mc.options.fov().set((int)originalFov);
+        mc.options.fov().set(originalFov);
 
         if (originalGameType != null) mc.gameMode.setLocalMode(originalGameType);
         if (originalCameraType != null) mc.options.setCameraType(originalCameraType);
     }
 
-    public static boolean isPlaying() { return isPlaying; }
-
+    public static boolean isPlaying() {
+        return isPlaying;
+    }
 
     private static double interpolate(double p0, double p1, double p2, double p3, float t, InterpolationType type) {
         if (type == InterpolationType.CATMULL_ROM) return catmull(p0, p1, p2, p3, t);
         return Mth.lerp(getEased(t, type), p1, p2);
-    }
-
-    private static double lerp(double v1, double v2, float t, InterpolationType type) {
-        return Mth.lerp(getEased(t, type), v1, v2);
     }
 
     private static double catmull(double p0, double p1, double p2, double p3, float t) {

@@ -4,6 +4,7 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -23,6 +24,7 @@ public abstract class LocalPlayerMixin extends AbstractClientPlayer {
             this.noPhysics = true;
             this.setOnGround(false);
             this.fallDistance = 0;
+            this.setDeltaMovement(Vec3.ZERO);
         }
     }
 }

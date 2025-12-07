@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -11,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.StreamSupport;
 
 public class CutsceneManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -34,28 +37,36 @@ public class CutsceneManager {
         return playerBuffer.size();
     }
 
-    public static boolean saveRecording(ServerPlayer player, String cutsceneName, String entityName) throws IOException {
+    public static boolean saveRecording(ServerPlayer player, String cutsceneName, String entityNameToAttach) throws IOException {
         List<Keyframe> playerBuffer = recordingBuffers.get(player.getUUID());
         if (playerBuffer == null || playerBuffer.isEmpty()) return false;
 
         Cutscene cutscene = new Cutscene();
         cutscene.keyframes = new ArrayList<>(playerBuffer);
 
-        if (entityName != null && !entityName.isEmpty()) {
+        if (entityNameToAttach != null && !entityNameToAttach.isEmpty()) {
             cutscene.useEntity = true;
-            cutscene.entityName = entityName;
-            cutscene.lookAtEntity = false;
+            cutscene.entityName = entityNameToAttach;
+            // cutscene.lookAtEntity = false;
 
-            Keyframe firstFrame = cutscene.keyframes.get(0);
-            double originX = firstFrame.x;
-            double originY = firstFrame.y;
-            double originZ = firstFrame.z;
+            Entity targetEntity = StreamSupport.stream(player.serverLevel().getAllEntities().spliterator(), false)
+                .filter(e -> e.getName().getString().equalsIgnoreCase(entityNameToAttach)
+                    || e.getEncodeId().equalsIgnoreCase(entityNameToAttach))
+                .min(Comparator.comparingDouble(e -> e.distanceToSqr(player)))
+                .orElse(null);
 
-            for(Keyframe kf : cutscene.keyframes) {
-                kf.offsetX = kf.x - originX;
-                kf.offsetY = kf.y - originY;
-                kf.offsetZ = kf.z - originZ;
-                kf.x = 0; kf.y = 0; kf.z = 0;
+            if (targetEntity != null) {
+                Vec3 entityPos = targetEntity.position();
+                float eye = targetEntity.getEyeHeight();
+                for(Keyframe kf : cutscene.keyframes) {
+                    kf.offsetX = kf.x - entityPos.x;
+                    kf.offsetY = kf.y - (entityPos.y + eye);
+                    kf.offsetZ = kf.z - entityPos.z;
+                    kf.x = 0; kf.y = 0; kf.z = 0;
+                }
+            } else {
+                player.sendSystemMessage(Component.literal("Entity not found, saving absolute coords."));
+                cutscene.useEntity = false;
             }
         } else {
             cutscene.useEntity = false;

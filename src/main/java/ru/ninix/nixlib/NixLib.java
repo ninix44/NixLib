@@ -138,7 +138,7 @@ public class NixLib {
             modEventBus.addListener(ClientModEvents::registerGuiLayers);
 
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onClientTick);
-            NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onRenderLevelStage);
+            //NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onRenderLevelStage);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onScreenRenderPost);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onComputeCameraAngles);
             NeoForge.EVENT_BUS.addListener(ClientRuntimeEvents::onComputeFov);
@@ -380,21 +380,8 @@ public class NixLib {
             ShaderAPI.tick();
         }
 
-        public static void onRenderLevelStage(RenderLevelStageEvent event) {
-            if (ClientCutsceneManager.isPlaying() && event.getStage() == RenderLevelStageEvent.Stage.AFTER_SKY) {
-                var poseStack = event.getPoseStack();
-                var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-
-                double dx = ClientCutsceneManager.cameraX - camera.getPosition().x;
-                double dy = ClientCutsceneManager.cameraY - camera.getPosition().y;
-                double dz = ClientCutsceneManager.cameraZ - camera.getPosition().z;
-
-                poseStack.translate(-dx, -dy, -dz);
-            }
-
-            if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
-                ShaderAPI.renderWorldShaders(event.getPartialTick().getGameTimeDeltaTicks());
-            }
+        public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
+            ShaderAPI.renderScreenShaders(event.getPartialTick());
         }
 
         public static void onRenderPlayer(RenderPlayerEvent.Pre event) {
@@ -403,15 +390,10 @@ public class NixLib {
             }
         }
 
-        public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
-            ShaderAPI.renderScreenShaders(event.getPartialTick());
-        }
-
         public static void onComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
             if (ClientCutsceneManager.isPlaying()) {
                 ClientCutsceneManager.updateCamera(event);
-            }
-            else if (CameraStateManager.isActive()) {
+            } else if (CameraStateManager.isActive()) {
                 event.setRoll(CameraStateManager.getRoll());
             }
         }
@@ -419,8 +401,7 @@ public class NixLib {
         public static void onComputeFov(ViewportEvent.ComputeFov event) {
             if (ClientCutsceneManager.isPlaying()) {
                 event.setFOV(ClientCutsceneManager.interpolatedFov);
-            }
-            else if (CameraStateManager.isActive()) {
+            } else if (CameraStateManager.isActive()) {
                 event.setFOV(CameraStateManager.getFov());
             }
         }
@@ -428,7 +409,6 @@ public class NixLib {
         public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
-
             if (mc.player.isHolding(CAMERA_ITEM.get())) {
                 boolean isCtrl = GLFW.glfwGetKey(mc.getWindow().getWindow(), GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS;
                 if (isCtrl) {

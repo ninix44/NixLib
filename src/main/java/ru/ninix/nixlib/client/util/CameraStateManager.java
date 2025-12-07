@@ -15,6 +15,7 @@ public class CameraStateManager {
             isEditorActive = false;
             return;
         }
+
         boolean holdingCamera = mc.player.isHolding(NixLib.CAMERA_ITEM.get());
         if (isEditorActive && !holdingCamera) {
             isEditorActive = false;
@@ -42,18 +43,17 @@ public class CameraStateManager {
     }
 
     public static void resetRoll() {
-        activate(); cameraRoll = 0f;
+        activate();
+        cameraRoll = 0f;
     }
 
     public static boolean isActive() {
-        return isEditorActive;
-    }
+        return isEditorActive; }
 
     public static float getFov() {
         return cameraFov;
     }
 
     public static float getRoll() {
-        return cameraRoll;
-    }
+        return cameraRoll; }
 }
