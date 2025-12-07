@@ -10,7 +10,8 @@
   ],
   "client": [
     "client.GameRendererMixin",
-    "client.LocalPlayerMixin"
+    "client.LocalPlayerMixin",
+    "client.CameraMixin"
   ],
   "injectors": {
     "defaultRequire": 1

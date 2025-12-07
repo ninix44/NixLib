@@ -19,7 +19,7 @@ public abstract class LocalPlayerMixin extends AbstractClientPlayer {
     }
 
     @Inject(method = "aiStep", at = @At("HEAD"))
-    private void nixlib_onAiStep(CallbackInfo ci) {
+    private void nixlib_disablePhysicsDuringCutscene(CallbackInfo ci) {
         if (ClientCutsceneManager.isPlaying()) {
             this.noPhysics = true;
             this.setOnGround(false);

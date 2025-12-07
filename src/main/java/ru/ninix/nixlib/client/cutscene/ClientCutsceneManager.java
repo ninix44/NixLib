@@ -125,20 +125,7 @@ public class ClientCutsceneManager {
 
         double targetY = cameraY - mc.player.getEyeHeight();
         mc.player.setPos(cameraX, targetY, cameraZ);
-
         mc.player.setDeltaMovement(Vec3.ZERO);
-
-        mc.player.xo = mc.player.getX();
-        mc.player.yo = mc.player.getY();
-        mc.player.zo = mc.player.getZ();
-        mc.player.xOld = mc.player.getX();
-        mc.player.yOld = mc.player.getY();
-        mc.player.zOld = mc.player.getZ();
-
-        mc.player.setYRot(0f);
-        mc.player.setXRot(0f);
-        mc.player.yRotO = 0f;
-        mc.player.xRotO = 0f;
     }
 
     public static void updateCamera(ViewportEvent.ComputeCameraAngles event) {
@@ -169,8 +156,11 @@ public class ClientCutsceneManager {
         event.setYaw(finalYaw + shake.y);
         event.setPitch(-finalPitch + shake.x);
         event.setRoll((float)interpolatedRoll + shake.z);
+    }
 
-        syncPlayerToCamera();
+    public static void updateValuesFromMixin(float partialTick) {
+        if (!isPlaying) return;
+        updateValues(totalTicksElapsed + partialTick);
     }
 
     private static Quaternionf interpolatedQuaternion = new Quaternionf();
